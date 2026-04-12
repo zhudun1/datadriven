@@ -1,0 +1,18 @@
+# 不需要打包进 Docker 镜像的大文件/目录
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.git/
+.gitignore
+*.md
+datasets/
+Pointnet2_PyTorch-master/
+checkpoints/checkpoints_CFM_mvtec/cable_gland/*.pth
+ppo_graph_model.zip
+orchestration_policy_report.json
+*.log
+node_modules/
+.env
+.vscode/
+.idea/

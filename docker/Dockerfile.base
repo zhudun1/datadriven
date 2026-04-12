@@ -1,0 +1,18 @@
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# 安装系统依赖（OpenCV/opencv 需要）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 libglib2.0-0 libsm6 libxext6 libxrender-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# 复制 requirements.txt 并安装 Python 依赖
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 复制整个项目
+COPY . .
+
+# 默认入口（可被各服务覆盖）
+CMD ["python", "-c", "print('use specific service dockerfile')"]

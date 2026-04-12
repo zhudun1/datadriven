@@ -1,0 +1,184 @@
+version: '3.8'
+
+services:
+  # =====================================
+  # 基础设施层
+  # =====================================
+
+  mysql:
+    image: mysql:8
+    container_name: data-driven-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: QosRoot@123
+      MYSQL_DATABASE: qos_user_center
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - data-driven-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: data-driven-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass 123456
+    volumes:
+      - redis_data:/data
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "123456", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - data-driven-net
+
+  # =====================================
+  # 业务服务层
+  # =====================================
+
+  usercenter:
+    build:
+      context: ..
+      dockerfile: docker/usercenter/Dockerfile
+    container_name: data-driven-usercenter
+    ports:
+      - "8003:8003"
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: QosRoot@123
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - data-driven-net
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: docker/gateway/Dockerfile
+    container_name: data-driven-gateway
+    ports:
+      - "8001:8001"
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: QosRoot@123
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: 123456
+      REDIS_DB: 0
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - data-driven-net
+
+  perception:
+    build:
+      context: ..
+      dockerfile: docker/perception/Dockerfile
+    container_name: data-driven-perception
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: QosRoot@123
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: 123456
+      REDIS_DB: 0
+      DEVICE: cpu
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - data-driven-net
+
+  orchestration:
+    build:
+      context: ..
+      dockerfile: docker/orchestration/Dockerfile
+    container_name: data-driven-orchestration
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: QosRoot@123
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: 123456
+      REDIS_DB: 0
+    volumes:
+      - ./models:/app/models  # 模型持久化
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - data-driven-net
+
+# =====================================
+# 网络与存储
+# =====================================
+
+volumes:
+  mysql_data:
+  redis_data:
+
+networks:
+  data-driven-net:
+    name: data-driven-net
+    driver: bridge

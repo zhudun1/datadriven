@@ -1,0 +1,138 @@
+version: '3.8'
+
+services:
+  # =====================================
+  # 基础设施层
+  # =====================================
+
+  mysql:
+    image: mysql:8
+    container_name: data-driven-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: QosRoot@123
+      MYSQL_DATABASE: qos_user_center
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - data-driven-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: data-driven-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - data-driven-net
+
+  # =====================================
+  # 业务服务层
+  # =====================================
+
+  usercenter:
+    build:
+      context: .
+      dockerfile: services/usercenter/Dockerfile
+    container_name: data-driven-usercenter
+    ports:
+      - "8003:8003"
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: QosRoot@123
+      MYSQL_DATABASE: qos_user_center
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - data-driven-net
+
+  gateway:
+    build:
+      context: .
+      dockerfile: services/gateway/Dockerfile
+    container_name: data-driven-gateway
+    ports:
+      - "8001:8001"
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: QosRoot@123
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - data-driven-net
+
+  perception:
+    build:
+      context: .
+      dockerfile: services/perception/Dockerfile
+    container_name: data-driven-perception
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: QosRoot@123
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      DEVICE: cpu
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - data-driven-net
+
+  orchestration:
+    build:
+      context: .
+      dockerfile: services/orchestration/Dockerfile
+    container_name: data-driven-orchestration
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: QosRoot@123
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - data-driven-net
+
+# =====================================
+# 网络与存储
+# =====================================
+
+volumes:
+  mysql_data:
+
+networks:
+  data-driven-net:
+    name: data-driven-net
+    driver: bridge

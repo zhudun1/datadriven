@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Demo - 注册</title>
+    <link rel="stylesheet" href="./assets/styles.css" />
+  </head>
+  <body class="auth-page">
+    <main class="auth-shell">
+      <section class="card auth-card" aria-labelledby="register-title">
+        <p class="product-name">Demo</p>
+        <h1 id="register-title">创建您的账户</h1>
+
+        <div id="register-message" class="message" aria-live="polite"></div>
+
+        <form id="register-form" novalidate>
+          <label class="field">
+            <span>邮箱</span>
+            <input id="register-email" name="email" type="email" autocomplete="email" placeholder="请输入邮箱" required />
+          </label>
+
+          <label class="field">
+            <span>密码</span>
+            <div class="password-wrap">
+              <input id="register-password" name="password" type="password" autocomplete="new-password" required />
+              <button type="button" class="ghost-btn" data-toggle-password="register-password" aria-label="切换密码可见性">
+                显示
+              </button>
+            </div>
+          </label>
+
+          <label class="field">
+            <span>再次输入密码</span>
+            <div class="password-wrap">
+              <input id="register-confirm-password" name="confirmPassword" type="password" autocomplete="new-password" required />
+              <button type="button" class="ghost-btn" data-toggle-password="register-confirm-password" aria-label="切换密码可见性">
+                显示
+              </button>
+            </div>
+          </label>
+
+          <button type="submit" class="primary-btn">注册</button>
+        </form>
+
+        <p class="create-account-wrap">
+          <a href="./index.html" class="inline-link">登录</a>
+        </p>
+      </section>
+    </main>
+
+    <script type="module" src="./js/register.js"></script>
+  </body>
+</html>

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Demo - 登录</title>
+    <link rel="stylesheet" href="./assets/styles.css" />
+  </head>
+  <body class="auth-page">
+    <main class="auth-shell">
+      <section class="card auth-card" aria-labelledby="auth-title">
+        <p class="product-name">Demo</p>
+        <h1 id="auth-title">请输入您的账户信息</h1>
+
+        <div id="global-message" class="message" aria-live="polite"></div>
+
+        <form id="login-form" novalidate>
+          <label class="field">
+            <span>邮箱</span>
+            <input id="login-email" name="email" type="email" autocomplete="email" placeholder="请输入邮箱" required />
+          </label>
+
+          <div class="password-head">
+            <span>密码</span>
+            <a href="#" class="inline-link">忘记密码</a>
+          </div>
+          <label class="field">
+            <div class="password-wrap">
+              <input id="login-password" name="password" type="password" autocomplete="current-password" required />
+              <button type="button" class="ghost-btn" data-toggle-password="login-password" aria-label="切换密码可见性">
+                显示
+              </button>
+            </div>
+          </label>
+
+          <button type="submit" class="primary-btn">登录</button>
+        </form>
+
+        <p class="create-account-wrap">
+          <a href="./register.html" class="inline-link">创建账户</a>
+        </p>
+      </section>
+    </main>
+
+    <script type="module" src="./js/auth.js"></script>
+  </body>
+</html>
