@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QoS映射规则可视化 - 数据驱动编排系统</title>
+    <link rel="stylesheet" href="assets/styles.css">
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            color: #e0e0e0;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #00d4ff;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+        }
+        /* 流程图样式 */
+        .flow-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin: 30px 0;
+            padding: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+        }
+        .flow-step {
+            background: linear-gradient(145deg, #1e3a5f, #0d1b2a);
+            border: 2px solid #00d4ff;
+            border-radius: 12px;
+            padding: 20px 25px;
+            min-width: 180px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        .flow-step:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,212,255,0.3);
+        }
+        .flow-step h3 {
+            margin: 0 0 10px 0;
+            color: #00d4ff;
+            font-size: 16px;
+        }
+        .flow-step p {
+            margin: 5px 0;
+            color: #aaa;
+            font-size: 13px;
+        }
+        .flow-arrow {
+            color: #00d4ff;
+            font-size: 24px;
+        }
+        /* 规则表格 */
+        .rules-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .rule-card {
+            background: linear-gradient(145deg, #1e3a5f, #0d1b2a);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #333;
+        }
+        .rule-card h2 {
+            color: #00d4ff;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        th, td {
+            padding: 10px 8px;
+            text-align: center;
+            border-bottom: 1px solid #333;
+        }
+        th {
+            background: rgba(0,212,255,0.1);
+            color: #00d4ff;
+        }
+        td {
+            color: #ccc;
+        }
+        tr:hover td {
+            background: rgba(0,212,255,0.1);
+        }
+        /* 风险等级着色 */
+        .level-L3 { color: #ff4757; font-weight: bold; }
+        .level-L2 { color: #ff6b35; font-weight: bold; }
+        .level-L1 { color: #ffa502; font-weight: bold; }
+        .level-L0 { color: #2ed573; font-weight: bold; }
+        /* 交互测试区 */
+        .demo-section {
+            background: linear-gradient(145deg, #1e3a5f, #0d1b2a);
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+            border: 2px solid #00d4ff;
+        }
+        .demo-section h2 {
+            color: #00d4ff;
+            margin-top: 0;
+        }
+        .input-group {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin: 15px 0;
+        }
+        .input-group label {
+            color: #aaa;
+            min-width: 100px;
+        }
+        .input-group input, .input-group select {
+            background: #0d1b2a;
+            border: 1px solid #00d4ff;
+            color: #fff;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            box-shadow: 0 0 10px rgba(0,212,255,0.3);
+        }
+        .btn {
+            background: linear-gradient(145deg, #00d4ff, #0099cc);
+            color: #000;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0,212,255,0.4);
+        }
+        .btn.secondary {
+            background: transparent;
+            border: 1px solid #00d4ff;
+            color: #00d4ff;
+        }
+        .btn.secondary:hover {
+            background: rgba(0,212,255,0.2);
+        }
+        .btn.danger {
+            background: #ff4757;
+            color: #fff;
+        }
+        .btn.danger:hover {
+            background: #ff6b81;
+            box-shadow: 0 5px 20px rgba(255,71,87,0.4);
+        }
+        /* 结果展示 */
+        .result-box {
+            background: #0d1b2a;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid #333;
+        }
+        .result-box h3 {
+            color: #00d4ff;
+            margin-top: 0;
+        }
+        .qos-vector {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin: 15px 0;
+        }
+        .qos-dim {
+            background: linear-gradient(145deg, #1e3a5f, #0d1b2a);
+            border: 1px solid #00d4ff;
+            border-radius: 10px;
+            padding: 15px;
+            min-width: 120px;
+            text-align: center;
+        }
+        .qos-dim .value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #00d4ff;
+        }
+        .qos-dim .label {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+        .qos-dim .unit {
+            font-size: 11px;
+            color: #666;
+        }
+        /* QoS向量条形图 */
+        .vector-bar {
+            height: 30px;
+            background: #1e3a5f;
+            border-radius: 15px;
+            margin: 8px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        .vector-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00d4ff, #0099cc);
+            border-radius: 15px;
+            transition: width 0.5s ease;
+        }
+        .vector-bar-label {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 12px;
+            color: #fff;
+            z-index: 1;
+        }
+        .vector-bar-value {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 12px;
+            color: #00d4ff;
+            z-index: 1;
+        }
+        /* 筛选功能样式 */
+        .filter-section {
+            background: linear-gradient(145deg, #1e3a5f, #0d1b2a);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 2px solid #00d4ff;
+        }
+        .filter-section h2 {
+            color: #00d4ff;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        .filter-row {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .filter-row label {
+            color: #aaa;
+            min-width: 80px;
+        }
+        .filter-row select {
+            background: #0d1b2a;
+            border: 1px solid #00d4ff;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            min-width: 120px;
+        }
+        .filter-row select:focus {
+            outline: none;
+            box-shadow: 0 0 10px rgba(0,212,255,0.3);
+        }
+        .filter-result-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 13px;
+        }
+        .filter-result-table th, .filter-result-table td {
+            padding: 12px 10px;
+            text-align: center;
+            border: 1px solid #333;
+        }
+        .filter-result-table th {
+            background: rgba(0,212,255,0.15);
+            color: #00d4ff;
+        }
+        .filter-result-table td {
+            color: #ccc;
+        }
+        .filter-result-table tr:hover td {
+            background: rgba(0,212,255,0.1);
+        }
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .rules-section {
+                grid-template-columns: 1fr;
+            }
+            .flow-container {
+                flex-direction: column;
+            }
+            .flow-arrow {
+                transform: rotate(90deg);
+            }
+            .filter-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .filter-row select {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 QoS映射规则可视化</h1>
+        <p class="subtitle">从异常分数到QoS向量的完整映射流程</p>
+
+        <!-- 核心参数映射表 - 筛选功能 -->
+        <div class="filter-section">
+            <h2>📊 核心参数映射表 (筛选查看)</h2>
+            <p style="color: #888; font-size: 13px; margin-bottom: 15px;">按异常等级和业务场景筛选，查看对应的核心QoS参数</p>
+
+            <div class="filter-row">
+                <label>异常等级:</label>
+                <select id="filterLevel" onchange="filterQosTable()">
+                    <option value="all">全部等级</option>
+                    <option value="L3">L3 - 紧急安全</option>
+                    <option value="L2">L2 - 关键异常</option>
+                    <option value="L1">L1 - 常规异常</option>
+                    <option value="L0">L0 - 无异常</option>
+                </select>
+
+                <label>业务场景:</label>
+                <select id="filterScenario" onchange="filterQosTable()">
+                    <option value="all">全部场景</option>
+                    <option value="safety">safety - 安全监控</option>
+                    <option value="quality">quality - 质量检测</option>
+                    <option value="maintenance">maintenance - 巡检维护</option>
+                    <option value="monitoring">monitoring - 周期性监控</option>
+                </select>
+            </div>
+
+            <table class="filter-result-table" id="qosFilterTable">
+                <thead>
+                    <tr>
+                        <th>异常等级</th>
+                        <th>等级名称</th>
+                        <th>业务场景</th>
+                        <th>时延预算(ms)</th>
+                        <th>可靠性</th>
+                        <th>优先级</th>
+                        <th>说明</th>
+                    </tr>
+                </thead>
+                <tbody id="qosFilterTableBody">
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 流程图 -->
+        <div class="flow-container">
+            <div class="flow-step">
+                <h3>📊 异常检测</h3>
+                <p>CFM模型推理</p>
+                <p>输出: 0.0-1.0</p>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">
+                <h3>⚠️ 风险分级</h3>
+                <p>L0/L1/L2/L3</p>
+                <p>根据分数区间</p>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">
+                <h3>📋 业务场景</h3>
+                <p>safety/quality</p>
+                <p>maintenance/monitoring</p>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">
+                <h3>📐 基规则映射</h3>
+                <p>查表得时延</p>
+                <p>可靠性/优先级</p>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">
+                <h3>🔢 计算细节</h3>
+                <p>吞吐量</p>
+                <p>抖动/丢包率</p>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">
+                <h3>🎯 6维QoS向量</h3>
+                <p>[时延,抖动,丢包</p>
+                <p>吞吐,可靠,优先级]</p>
+            </div>
+        </div>
+
+        <!-- 规则表格 -->
+        <div class="rules-section">
+            <!-- 异常等级规则 -->
+            <div class="rule-card">
+                <h2>📊 异常等级定义</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>等级</th>
+                            <th>分数区间</th>
+                            <th>名称</th>
+                            <th>严重程度</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="level-L3">L3</td>
+                            <td>0.75 - 1.0</td>
+                            <td>紧急安全</td>
+                            <td>🔴 严重</td>
+                        </tr>
+                        <tr>
+                            <td class="level-L2">L2</td>
+                            <td>0.50 - 0.75</td>
+                            <td>关键缺陷</td>
+                            <td>🟠 高</td>
+                        </tr>
+                        <tr>
+                            <td class="level-L1">L1</td>
+                            <td>0.30 - 0.50</td>
+                            <td>常规异常</td>
+                            <td>🟡 中</td>
+                        </tr>
+                        <tr>
+                            <td class="level-L0">L0</td>
+                            <td>0.00 - 0.30</td>
+                            <td>无异常</td>
+                            <td>🟢 低</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 业务场景规则 -->
+            <div class="rule-card">
+                <h2>🏢 业务场景定义</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>场景</th>
+                            <th>名称</th>
+                            <th>关键业务</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>safety</td>
+                            <td>安全监控</td>
+                            <td>🔴 是</td>
+                        </tr>
+                        <tr>
+                            <td>quality</td>
+                            <td>质量检测</td>
+                            <td>🔴 是</td>
+                        </tr>
+                        <tr>
+                            <td>maintenance</td>
+                            <td>巡检维护</td>
+                            <td>🟡 否</td>
+                        </tr>
+                        <tr>
+                            <td>monitoring</td>
+                            <td>周期性监控</td>
+                            <td>🟢 否</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 基规则表 -->
+        <div class="rule-card">
+            <h2>📋 基规则映射表 (异常等级 + 业务场景 → QoS)</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>异常等级</th>
+                        <th>业务场景</th>
+                        <th>时延预算</th>
+                        <th>可靠性等级</th>
+                        <th>优先级</th>
+                        <th>说明</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="level-L3">L3</td>
+                        <td>safety</td>
+                        <td>50ms</td>
+                        <td>极高(99.999%)</td>
+                        <td>7 (紧急)</td>
+                        <td>人员碰撞/火灾</td>
+                    </tr>
+                    <tr>
+                        <td class="level-L3">L3</td>
+                        <td>quality</td>
+                        <td>100ms</td>
+                        <td>极高(99.999%)</td>
+                        <td>7 (紧急)</td>
+                        <td>严重质量缺陷</td>
+                    </tr>
+                    <tr>
+                        <td class="level-L2">L2</td>
+                        <td>safety</td>
+                        <td>100ms</td>
+                        <td>高(99.99%)</td>
+                        <td>6 (高)</td>
+                        <td>安全相关</td>
+                    </tr>
+                    <tr>
+                        <td class="level-L2">L2</td>
+                        <td>quality</td>
+                        <td>200ms</td>
+                        <td>高(99.99%)</td>
+                        <td>6 (高)</td>
+                        <td>焊接气泡/裂纹</td>
+                    </tr>
+                    <tr>
+                        <td class="level-L1">L1</td>
+                        <td>quality</td>
+                        <td>1000ms</td>
+                        <td>中(99.9%)</td>
+                        <td>4</td>
+                        <td>外观瑕疵</td>
+                    </tr>
+                    <tr>
+                        <td class="level-L1">L1</td>
+                        <td>monitoring</td>
+                        <td>3000ms</td>
+                        <td>尽力而为</td>
+                        <td>2</td>
+                        <td>常规监控</td>
+                    </tr>
+                    <tr>
+                        <td class="level-L0">L0</td>
+                        <td>monitoring</td>
+                        <td>5000ms</td>
+                        <td>尽力而为</td>
+                        <td>2</td>
+                        <td>无异常</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 6维QoS向量说明 -->
+        <div class="rule-card">
+            <h2>🎯 6维QoS向量详解</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>维度</th>
+                        <th>符号</th>
+                        <th>单位</th>
+                        <th>说明</th>
+                        <th>计算方式</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td>latency_budget</td>
+                        <td>ms</td>
+                        <td>端到端时延上限</td>
+                        <td>查基规则表</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td>jitter_bound</td>
+                        <td>ms</td>
+                        <td>时延抖动上限</td>
+                        <td>时延×10%(L3/L2) 或 20%(L1/L0)</td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td>loss_tolerance</td>
+                        <td>%</td>
+                        <td>丢包率上限</td>
+                        <td>L3:0.01%, L2:0.1%, L1:0.5%, L0:1%</td>
+                    </tr>
+                    <tr>
+                        <td>4</td>
+                        <td>throughput_required</td>
+                        <td>Mbps</td>
+                        <td>最低吞吐量</td>
+                        <td>数据量/(时延/1000)×1.2</td>
+                    </tr>
+                    <tr>
+                        <td>5</td>
+                        <td>reliability_class</td>
+                        <td>枚举</td>
+                        <td>可靠性等级</td>
+                        <td>查基规则表 (2-5)</td>
+                    </tr>
+                    <tr>
+                        <td>6</td>
+                        <td>priority</td>
+                        <td>整数</td>
+                        <td>调度优先级</td>
+                        <td>查基规则表 (1-7)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 交互演示区 -->
+        <div class="demo-section">
+            <h2>🧪 交互演示：输入异常分数，查看QoS映射结果</h2>
+
+            <div class="input-group">
+                <label>异常分数 (0-1):</label>
+                <input type="number" id="anomalyScore" min="0" max="1" step="0.01" value="0.75">
+            </div>
+
+            <div class="input-group">
+                <label>数据类型:</label>
+                <select id="dataType">
+                    <option value="image">图片 (image)</option>
+                    <option value="pointcloud" selected>点云 (pointcloud)</option>
+                    <option value="video">视频 (video)</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label>文件大小 (MB):</label>
+                <input type="number" id="fileSize" min="0" value="50">
+            </div>
+
+            <div class="input-group">
+                <label>业务场景:</label>
+                <select id="businessScenario">
+                    <option value="safety">安全监控 (safety)</option>
+                    <option value="quality">质量检测 (quality)</option>
+                    <option value="maintenance">巡检维护 (maintenance)</option>
+                    <option value="monitoring" selected>周期性监控 (monitoring)</option>
+                </select>
+            </div>
+
+            <button class="btn" onclick="calculateQoS()">🔄 映射QoS向量</button>
+            <button class="btn" onclick="checkResources()" style="margin-left: 10px;">检查资源状态</button>
+
+            <div class="result-box" id="resultBox" style="display:none;">
+                <h3>📊 QoS映射结果</h3>
+
+                <div style="margin: 15px 0;">
+                    <strong>风险等级: </strong>
+                    <span id="riskLevel" style="font-size: 20px; font-weight: bold;"></span>
+                </div>
+
+                <div style="margin: 15px 0;">
+                    <strong>异常等级详情: </strong>
+                    <span id="anomalyLevelDetail"></span>
+                </div>
+
+                <h4 style="color: #00d4ff; margin: 20px 0 10px 0;">原始QoS参数 (未归一化)</h4>
+                <div class="qos-vector" id="qosDetails">
+                </div>
+
+                <h4 style="color: #00d4ff; margin: 20px 0 10px 0;">6维归一化QoS向量</h4>
+                <div class="qos-vector" id="qosVectorDisplay">
+                </div>
+
+                <h4 style="color: #00d4ff; margin: 20px 0 10px 0;">向量可视化</h4>
+                <div id="vectorBars"></div>
+            </div>
+        </div>
+
+        <!-- 资源状态弹窗 -->
+        <div id="resourceModal" class="modal" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000;">
+            <div class="modal-content" style="background: linear-gradient(145deg, #1e3a5f, #0d1b2a); border: 2px solid #00d4ff; border-radius: 12px; padding: 25px; margin: 10% auto; max-width: 400px; color: #fff;">
+                <h2 id="modalTitle" style="color: #00d4ff; margin-top: 0;">资源状态</h2>
+                <p id="modalMessage" style="color: #ccc; margin: 15px 0;"></p>
+
+                <div id="modalOptions" style="display: none; margin-top: 20px;">
+                    <button class="btn" onclick="waitAndOrchestrate()">等待编排</button>
+                    <button class="btn secondary" onclick="addResource()" style="margin-left: 8px;">添加资源</button>
+                    <button class="btn danger" onclick="closeModal()" style="margin-left: 8px;">取消</button>
+                </div>
+
+                <div id="modalSufficient" style="display: none; margin-top: 20px;">
+                    <button class="btn" onclick="startOrchestration()">开始编排</button>
+                    <button class="btn secondary" onclick="closeModal()" style="margin-left: 8px;">取消</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 页脚 -->
+        <div style="text-align: center; margin: 40px 0; color: #666;">
+            <p>数据驱动编排系统 | QoS映射规则可视化</p>
+            <p><a href="step6-orchestration-visualization.html" style="color: #00d4ff;">← 返回编排可视化</a></p>
+        </div>
+    </div>
+
+    <script>
+        // ==================== 核心参数映射表数据 (与后端QoSTranslatorV2一致) ====================
+        const QOS_MAPPING_TABLE = [
+            // L3 - 紧急安全
+            {level: "L3", levelName: "紧急安全", scenario: "safety", latency: 50, reliability: 5, reliabilityName: "极高(99.999%)", priority: 7, description: "人员碰撞/火灾"},
+            {level: "L3", levelName: "紧急安全", scenario: "quality", latency: 100, reliability: 5, reliabilityName: "极高(99.999%)", priority: 7, description: "严重质量缺陷"},
+            {level: "L3", levelName: "紧急安全", scenario: "maintenance", latency: 100, reliability: 4, reliabilityName: "高(99.99%)", priority: 6, description: "维护紧急"},
+            {level: "L3", levelName: "紧急安全", scenario: "monitoring", latency: 150, reliability: 4, reliabilityName: "高(99.99%)", priority: 6, description: "监控紧急"},
+            // L2 - 关键异常
+            {level: "L2", levelName: "关键异常", scenario: "safety", latency: 100, reliability: 4, reliabilityName: "高(99.99%)", priority: 6, description: "安全相关"},
+            {level: "L2", levelName: "关键异常", scenario: "quality", latency: 200, reliability: 4, reliabilityName: "高(99.99%)", priority: 6, description: "焊接气泡/裂纹"},
+            {level: "L2", levelName: "关键异常", scenario: "maintenance", latency: 500, reliability: 3, reliabilityName: "中(99.9%)", priority: 4, description: "设备异常"},
+            {level: "L2", levelName: "关键异常", scenario: "monitoring", latency: 600, reliability: 3, reliabilityName: "中(99.9%)", priority: 4, description: "监控异常"},
+            // L1 - 常规异常
+            {level: "L1", levelName: "常规异常", scenario: "safety", latency: 200, reliability: 4, reliabilityName: "高(99.99%)", priority: 5, description: "安全提醒"},
+            {level: "L1", levelName: "常规异常", scenario: "quality", latency: 1000, reliability: 3, reliabilityName: "中(99.9%)", priority: 4, description: "外观瑕疵"},
+            {level: "L1", levelName: "常规异常", scenario: "maintenance", latency: 2000, reliability: 3, reliabilityName: "中(99.9%)", priority: 3, description: "一般维护"},
+            {level: "L1", levelName: "常规异常", scenario: "monitoring", latency: 3000, reliability: 2, reliabilityName: "尽力而为(99%)", priority: 2, description: "常规监控"},
+            // L0 - 无异常
+            {level: "L0", levelName: "无异常", scenario: "safety", latency: 500, reliability: 3, reliabilityName: "中(99.9%)", priority: 3, description: "安全确认"},
+            {level: "L0", levelName: "无异常", scenario: "quality", latency: 800, reliability: 3, reliabilityName: "中(99.9%)", priority: 3, description: "质量确认"},
+            {level: "L0", levelName: "无异常", scenario: "maintenance", latency: 8000, reliability: 2, reliabilityName: "尽力而为(99%)", priority: 1, description: "定期维护"},
+            {level: "L0", levelName: "无异常", scenario: "monitoring", latency: 5000, reliability: 2, reliabilityName: "尽力而为(99%)", priority: 2, description: "周期性监控"},
+        ];
+
+        // ==================== 筛选表格功能 ====================
+        function filterQosTable() {
+            const selectedLevel = document.getElementById('filterLevel').value;
+            const selectedScenario = document.getElementById('filterScenario').value;
+
+            const tbody = document.getElementById('qosFilterTableBody');
+            tbody.innerHTML = '';
+
+            const filteredData = QOS_MAPPING_TABLE.filter(item => {
+                const matchLevel = selectedLevel === 'all' || item.level === selectedLevel;
+                const matchScenario = selectedScenario === 'all' || item.scenario === selectedScenario;
+                return matchLevel && matchScenario;
+            });
+
+            if (filteredData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="color: #888;">没有匹配的映射规则</td></tr>';
+                return;
+            }
+
+            filteredData.forEach(item => {
+                const levelClass = 'level-' + item.level;
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="${levelClass}">${item.level}</td>
+                    <td>${item.levelName}</td>
+                    <td>${item.scenario}</td>
+                    <td>${item.latency}</td>
+                    <td>${item.reliabilityName}</td>
+                    <td>${item.priority}</td>
+                    <td>${item.description}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // ==================== 原有QoS翻译器逻辑 ====================
+        const ANOMALY_LEVELS = {
+            "L0": {score_range: [0.0, 0.3], name: "无异常"},
+            "L1": {score_range: [0.3, 0.5], name: "常规异常"},
+            "L2": {score_range: [0.5, 0.75], name: "关键异常"},
+            "L3": {score_range: [0.75, 1.0], name: "紧急安全"},
+        };
+
+        const BASE_RULES = {
+            ("L3","safety"): {latency: 50, reliability: 5, priority: 7},
+            ("L3","quality"): {latency: 100, reliability: 5, priority: 7},
+            ("L2","safety"): {latency: 100, reliability: 4, priority: 6},
+            ("L2","quality"): {latency: 200, reliability: 4, priority: 6},
+            ("L2","maintenance"): {latency: 500, reliability: 3, priority: 4},
+            ("L1","safety"): {latency: 200, reliability: 4, priority: 5},
+            ("L1","quality"): {latency: 1000, reliability: 3, priority: 4},
+            ("L1","maintenance"): {latency: 2000, reliability: 3, priority: 3},
+            ("L1","monitoring"): {latency: 3000, reliability: 2, priority: 2},
+            ("L0","monitoring"): {latency: 5000, reliability: 2, priority: 2},
+            ("L0","maintenance"): {latency: 8000, reliability: 2, priority: 1},
+        };
+
+        const RELIABILITY_NAMES = {
+            5: "极高(99.999%)",
+            4: "高(99.99%)",
+            3: "中(99.9%)",
+            2: "尽力而为(99%)",
+        };
+
+        function getAnomalyLevel(score) {
+            for (const [level, info] of Object.entries(ANOMALY_LEVELS)) {
+                if (score >= info.score_range[0] && score < info.score_range[1]) {
+                    return level;
+                }
+            }
+            return "L3";  // 最高级
+        }
+
+        function getDefaultRule(level, scenario) {
+            return BASE_RULES[[level, scenario]] || {latency: 1000, reliability: 3, priority: 3};
+        }
+
+        function calculateJitter(latency, level) {
+            return level === "L3" || level === "L2" ? latency * 0.1 : latency * 0.2;
+        }
+
+        function calculateLoss(level) {
+            const lossMap = {"L3": 0.01, "L2": 0.1, "L1": 0.5, "L0": 1.0};
+            return lossMap[level] || 1.0;
+        }
+
+        function calculateThroughput(dataSizeMB, latencyMs) {
+            if (latencyMs <= 0) return 0.1;
+            const timeSeconds = latencyMs / 1000.0;
+            return (dataSizeMB / timeSeconds) * 1.2;  // 冗余因子
+        }
+
+        function calculateQoS() {
+            // 获取输入
+            const anomalyScore = parseFloat(document.getElementById('anomalyScore').value) || 0.5;
+            const dataType = document.getElementById('dataType').value;
+            const fileSizeMB = parseFloat(document.getElementById('fileSize').value) || 50;
+            const scenario = document.getElementById('businessScenario').value;
+
+            // 1. 确定异常等级
+            const level = getAnomalyLevel(anomalyScore);
+
+            // 2. 查表获取基规则
+            const rule = getDefaultRule(level, scenario);
+
+            // 3. 计算细节
+            const jitterMs = calculateJitter(rule.latency, level);
+            const lossPct = calculateLoss(level);
+            const throughputMbps = calculateThroughput(fileSizeMB, rule.latency);
+
+            // 4. 构建6维归一化向量
+            const maxLatency = 10000.0;
+            const maxJitter = 2000.0;
+            const maxLoss = 1.0;
+            const maxThroughput = 1000.0;
+            const maxPriority = 7.0;
+
+            const qosVector = [
+                rule.latency / maxLatency,
+                jitterMs / maxJitter,
+                lossPct / maxLoss,
+                Math.min(throughputMbps / maxThroughput, 1.0),
+                rule.reliability / 5.0,
+                rule.priority / maxPriority,
+            ];
+
+            // 显示结果
+            document.getElementById('resultBox').style.display = 'block';
+
+            // 风险等级
+            const riskLevelEl = document.getElementById('riskLevel');
+            riskLevelEl.textContent = level;
+            riskLevelEl.className = 'level-' + level;
+
+            // 异常等级详情
+            document.getElementById('anomalyLevelDetail').textContent =
+                `${level} - ${ANOMALY_LEVELS[level].name}`;
+
+            // QoS详情
+            const detailsHtml = `
+                <div class="qos-dim">
+                    <div class="value">${rule.latency}</div>
+                    <div class="label">时延</div>
+                    <div class="unit">ms</div>
+                </div>
+                <div class="qos-dim">
+                    <div class="value">${jitterMs.toFixed(1)}</div>
+                    <div class="label">抖动</div>
+                    <div class="unit">ms</div>
+                </div>
+                <div class="qos-dim">
+                    <div class="value">${lossPct}</div>
+                    <div class="label">丢包率</div>
+                    <div class="unit">%</div>
+                </div>
+                <div class="qos-dim">
+                    <div class="value">${throughputMbps.toFixed(1)}</div>
+                    <div class="label">吞吐量</div>
+                    <div class="unit">Mbps</div>
+                </div>
+                <div class="qos-dim">
+                    <div class="value">${rule.reliability}</div>
+                    <div class="label">可靠性</div>
+                    <div class="unit">(级)</div>
+                </div>
+                <div class="qos-dim">
+                    <div class="value">${rule.priority}</div>
+                    <div class="label">优先级</div>
+                    <div class="unit">(0-7)</div>
+                </div>
+            `;
+            document.getElementById('qosDetails').innerHTML = detailsHtml;
+
+            // 归一化向量显示
+            const dimLabels = ['时延', '抖动', '丢包率', '吞吐量', '可靠性', '优先级'];
+            const vectorHtml = qosVector.map((v, i) =>
+                `<div class="qos-dim">
+                    <div class="value">${v.toFixed(4)}</div>
+                    <div class="label">${dimLabels[i]}</div>
+                </div>`
+            ).join('');
+            document.getElementById('qosVectorDisplay').innerHTML = vectorHtml;
+
+            // 向量条形图
+            const barHtml = dimLabels.map((label, i) => {
+                const value = (qosVector[i] * 100).toFixed(1);
+                return `
+                    <div class="vector-bar">
+                        <div class="vector-bar-label">${label}</div>
+                        <div class="vector-bar-fill" style="width: ${value}%"></div>
+                        <div class="vector-bar-value">${value}%</div>
+                    </div>
+                `;
+            }).join('');
+            document.getElementById('vectorBars').innerHTML = barHtml;
+        }
+
+        // 页面加载时初始化
+        window.onload = function() {
+            filterQosTable();  // 初始化筛选表格
+            calculateQoS();  // 初始化QoS计算
+        };
+
+        // ==================== 资源检查功能 ====================
+        let pendingCheckResult = null;
+
+        async function checkResources() {
+            const data = {
+                qos_vector: [0.8, 0.1, 1.0, 0.05],
+                resource_request: {vcpu: 8, memory: 16},
+                vnf_count: 2,
+            };
+
+            try {
+                const res = await fetch('/api/orchestrate/check', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data),
+                });
+                const result = await res.json();
+
+                pendingCheckResult = result;
+                showResourceModal(result);
+            } catch (e) {
+                alert('检查失败: ' + e.message);
+            }
+        }
+
+        function showResourceModal(result) {
+            const modal = document.getElementById('resourceModal');
+            const title = document.getElementById('modalTitle');
+            const message = document.getElementById('modalMessage');
+            const optionsDiv = document.getElementById('modalOptions');
+            const sufficientDiv = document.getElementById('modalSufficient');
+
+            modal.style.display = 'block';
+
+            if (result.status === 'waiting') {
+                title.textContent = '资源即将释放';
+                title.style.color = '#ffa502';
+                message.textContent = result.message;
+                optionsDiv.style.display = 'block';
+                sufficientDiv.style.display = 'none';
+            } else if (result.status === 'insufficient') {
+                title.textContent = '资源不足';
+                title.style.color = '#ff4757';
+                message.textContent = result.message +
+                    '\n需要: vcpu=' + result.required.vcpu + ', memory=' + result.required.memory_gb +
+                    '\n可用: vcpu=' + result.available.vcpu + ', memory=' + result.available.memory_gb;
+                optionsDiv.style.display = 'block';
+                sufficientDiv.style.display = 'none';
+            } else {
+                title.textContent = '资源充足';
+                title.style.color = '#2ed573';
+                message.textContent = result.message;
+                optionsDiv.style.display = 'none';
+                sufficientDiv.style.display = 'block';
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('resourceModal').style.display = 'none';
+        }
+
+        function waitAndOrchestrate() {
+            closeModal();
+            // 执行编排
+            calculateQoS();
+        }
+
+        function addResource() {
+            closeModal();
+            // 提示添加资源
+            alert('请添加节点资源后再试');
+        }
+
+        function startOrchestration() {
+            closeModal();
+            // 执行编排
+            calculateQoS();
+        }
+    </script>
+</body>
+</html>
