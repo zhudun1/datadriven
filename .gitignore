@@ -36,12 +36,6 @@ Thumbs.db
 # Environment
 .env
 
-# Cross-modal feature mapping (large submodule)
-crossmodal-feature-mapping/
-
-# Jigsaw VAD (large submodule)
-Jigsaw-VAD-main/
-
 # Pointnet2 build (generated)
 Pointnet2_PyTorch-master/build/
 
