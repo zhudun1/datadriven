@@ -38,25 +38,27 @@ data-driven_2/
 ├── business_perception/     # 业务感知服务 (异常检测)
 │   ├── cfm_detector.py    # CFM模型检测器
 │   └── jigsaw_detector.py # Jigsaw模型检测器
-├── checkpoints/           # ⭐ 模型权重文件
 ├── common/               # 公共组件
-├── datasets/             # ⭐ 训练/测试数据集
-├── docs/                # 设计文档
+├── docs/                 # 设计文档
 ├── frontend/             # 前端页面
-│   └── sandbox/        # 工作台界面
+│   └── sandbox/         # 工作台界面
 ├── intelligent_orchestration/  # 智能编排
-│   ├── ppo_agent.py  # PPO决策智能体
-│   ├── vne_env.py   # VNE环境
+│   ├── ppo_agent.py     # PPO决策智能体
+│   ├── vne_env.py      # VNE环境
 │   └── orchestration_service.py
-├── Jigsaw-VAD-main/     # ⭐ Jigsaw模型代码
-├── models/             # ⭐ CFM模型权重
-├── crossmodal-feature-mapping/  # ⭐ CFM特征提取代码
-├── Pointnet2_PyTorch-master/   # ⭐ PointNet2操作库
-├── services/           # 后端服务
-│   ├── gateway.py    # API网关
+├── Jigsaw-VAD-main/      # Jigsaw视频异常检测模型
+├── crossmodal-feature-mapping/  # CFM点云特征提取模型
+├── Pointnet2_PyTorch-master/   # PointNet2操作库
+├── services/            # 后端服务
+│   ├── gateway.py       # API网关
 │   └── perception_service.py
-├── START_SERVICES.md  # 服务启动说明
-└── qos映射.md       # QoS映射规则
+├── START_SERVICES.md    # 服务启动说明
+├── qos映射.md          # QoS映射规则
+├── checkpoints/         # ⭐ CFM模型权重
+├── models/              # ⭐ CFM特征提取模型
+├── ppo_logs/           # ⭐ PPO训练日志
+├── ppo_graph_model/     # ⭐ 训练好的PPO模型
+└── datasets/           # 训练/测试数据集
 ```
 
 ## 快速开始
@@ -86,7 +88,7 @@ CREATE DATABASE intelligent_orchestration;
 CREATE DATABASE qos_user_center;
 ```
 
-### 4. 下载必要文���
+### 4. 下载必要文件
 
 系统需要以下文件才能运行，请按下方说明放置：
 
@@ -101,7 +103,8 @@ CREATE DATABASE qos_user_center;
 
 #### 4.2 Jigsaw模型权重
 
-下载链接：https://github.com/jnian1992/Jigsaw-VAD/releases
+从仓库已包含的 Jigsaw-VAD-main 模块获取，或下载：
+https://github.com/jnian1992/Jigsaw-VAD/releases
 
 ```
 放入目录: Jigsaw-VAD-main/checkpoints/
@@ -110,7 +113,7 @@ CREATE DATABASE qos_user_center;
 
 #### 4.3 数据集（可选，用于测试）
 
-MVTec 3D-AD数据集：
+MVTec 3D-AD数据集（用于CFM模型）：
 
 ```
 放入目录: datasets/mvtec3d/
@@ -119,6 +122,13 @@ datasets/mvtec3d/cable_gland/
 ├── train/good/rgb/xxx.png
 ├── train/good/xyz/xxx.tiff
 └── test/xxx/rgb/xxx.png
+```
+
+Avenue数据集（用于Jigsaw模型）：
+https://www.cse.cuhk.edu.hk/leojia/projects/avebg/index.html
+
+```
+放入目录: datasets/avenue/
 ```
 
 ### 5. 启动服务
@@ -215,17 +225,18 @@ A: 确保从正确端口访问（8003），并检查浏览器控制台错误
 ### 训练新模型
 
 ```bash
-# PPO训练
+# PPO训练（使用新的QoS三层映射设计）
 python train_ppo.py
 ```
 
-### 修改QoS规则
+### 模块说明
 
-编辑 `business_perception/qos_translator.py` 中的 BASE_RULES 字典
+本项目包含两个核心异常检测模型模块（已推送至仓库）：
 
-### 修改异常阈值
+- **Jigsaw-VAD-main/** - Jigsaw视频异常检测模型
+- **crossmodal-feature-mapping/** - CFM点云+图像特征提取模型
 
-编辑 `threshold_config.json`
+这两个模块已作为独立模块集成到项目中，不需要单独下载。
 
 ## 许可证
 
