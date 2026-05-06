@@ -75,19 +75,27 @@ class MessageQueue:
         return message["task_id"]
 
     def consume(self, queue_name: str, blocking: bool = True, timeout: int = 0) -> Optional[dict]:
+        # 使用 lpop 代替 blpop，更加可靠
         if blocking:
-            result = self.redis_client.blpop(queue_name, timeout=timeout)
-            if result is None:
-                return None
-            _, data = result
+            # 轮询方式
+            import time
+            start = time.time()
+            while time.time() - start < timeout:
+                data = self.redis_client.lpop(queue_name)
+                if data:
+                    message = self._deserialize(data)
+                    logger.info(f"消费消息 from {queue_name}: task_id={message.get('task_id')}")
+                    return message
+                time.sleep(0.1)
+            return None
         else:
             data = self.redis_client.lpop(queue_name)
             if data is None:
                 return None
 
-        message = self._deserialize(data)
-        logger.info(f"消费消息 from {queue_name}: task_id={message.get('task_id')}")
-        return message
+            message = self._deserialize(data)
+            logger.info(f"消费消息 from {queue_name}: task_id={message.get('task_id')}")
+            return message
 
     def push_result(self, task_id: str, result: dict) -> None:
         message = {

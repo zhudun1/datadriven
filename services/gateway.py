@@ -683,7 +683,7 @@ def get_resources():
             # 从 t_physical_node JOIN t_node_compute/t_node_storage 读取
             c.execute("""
                 SELECT n.node_id, n.node_name,
-                       c.cpu_cores, c.used_cpu_cores,
+                       c.cpu_cores, c.used_cpu_cores, c.allocations,
                        s.ram_gb, s.used_ram_gb
                 FROM t_physical_node n
                 LEFT JOIN t_node_compute c ON n.node_id = c.node_id
@@ -700,6 +700,7 @@ def get_resources():
                 used_cpu = row.get("used_cpu_cores", 0)
                 ram_gb = row.get("ram_gb", 0)
                 used_ram = row.get("used_ram_gb", 0)
+                allocations = row.get("allocations", 0)
 
                 nodes[node_id] = {
                     "resource_id": node_id,
@@ -709,6 +710,7 @@ def get_resources():
                     "total_memory_gb": ram_gb,
                     "used_vcpu": used_cpu,
                     "used_memory_gb": used_ram,
+                    "allocations": allocations or 0,
                 }
             return nodes
     finally:
@@ -734,10 +736,9 @@ def get_links():
             # 从 t_physical_link 读取
             c.execute("""
                 SELECT link_id, link_name, src_node, dst_node,
-                       bandwidth_mbps, used_bandwidth_mbps,
+                       bandwidth_mbps, used_bandwidth_mbps, allocations,
                        propagation_delay_ms, queue_policy
                 FROM t_physical_link
-                WHERE is_active = 1
             """)
             rows = c.fetchall()
 
@@ -746,6 +747,7 @@ def get_links():
                 link_id = row["link_id"]
                 bw = row.get("bandwidth_mbps", 0)
                 used_bw = row.get("used_bandwidth_mbps", 0) or 0
+                allocations = row.get("allocations", 0) or 0
 
                 links[link_id] = {
                     "link_id": link_id,
@@ -757,6 +759,7 @@ def get_links():
                     "src_node": row.get("src_node"),
                     "dst_node": row.get("dst_node"),
                     "queue_policy": row.get("queue_policy"),
+                    "allocations": allocations,
                 }
             return links
     finally:
@@ -778,13 +781,13 @@ def get_thresholds():
 @app.get("/api/qos-rules")
 def get_qos_rules():
     """获取QoS规则表（基于数据特征组合）"""
-    from business_perception.qos_translator import QoSTranslator
+    from business_perception.qos_translator import QoSTranslatorV3 as QoSTranslator
 
     translator = QoSTranslator()
 
     return {
         "status": "success",
-        "profiles": translator.get_profiles_table(),
+        "profiles": translator.get_qos_profiles(),
         "description": "QoS由数据特征组合决定：数据大小 + 实时性要求"
     }
 
@@ -806,6 +809,26 @@ class OrchCheckRequest(BaseModel):
     resource_request: dict = {"vcpu": 8, "memory": 16}
     vnf_count: int = 2
     model_type: str = "CFM"
+
+
+class OrchRequestAsync(BaseModel):
+    """异步编排请求 - 立即返回task_id，前端轮询等待"""
+    task_id: str
+    qos_vector: list = [0.8, 0.1, 1.0, 0.05]
+    resource_request: dict = {"vcpu": 8, "memory": 16}
+    vnf_count: int = 2
+    rgb_path: str = ""
+    pcd_path: str = ""
+    video_path: str = ""
+    aux_image_path: str = ""
+    model_type: str = "CFM"
+    wait_if_insufficient: bool = True
+    max_wait_seconds: int = 30
+
+
+class OrchPollRequest(BaseModel):
+    """轮询异步编排结果"""
+    poll_token: str  # 轮询令牌
 
 
 @app.post("/api/orchestrate")
@@ -904,6 +927,158 @@ def orchestrate_check(req: OrchCheckRequest):
         vnf_count=req.vnf_count,
     )
     return result
+
+
+# 异步编排的全局状态存储
+_async_orch_state = {}
+
+
+@app.post("/api/orchestrate/async")
+def orchestrate_async(req: OrchRequestAsync):
+    """异步编排接口 - 立即返回，前端轮询等待"""
+    import uuid
+    import time
+    import threading
+
+    task_id = req.task_id
+    poll_token = str(uuid.uuid4())
+    max_wait = min(req.max_wait_seconds, 60)  # 最多等60秒
+
+    # 1. 先获取异常分数
+    anomaly_score = 0.5
+    risk_level = "NORMAL"
+    qos_vector = req.qos_vector
+    model_type = req.model_type
+
+    has_valid_files = False
+    if model_type == "CFM":
+        has_valid_files = req.rgb_path and req.pcd_path
+    else:
+        has_valid_files = req.video_path or req.aux_image_path
+
+    if has_valid_files:
+        try:
+            global _perception_service
+            if not hasattr(_perception_service, 'perception'):
+                from services.perception_service import PerceptionService
+                _perception_service['perception'] = PerceptionService()
+            perception = _perception_service['perception']
+            perc_message = {
+                "task_id": task_id,
+                "data_id": 0,
+                "model_type": model_type,
+                "rgb_path": req.rgb_path,
+                "pcd_path": req.pcd_path,
+                "video_path": req.video_path,
+                "aux_image_path": req.aux_image_path
+            }
+            perc_result = perception.process(perc_message)
+            if perc_result and perc_result.get("status") == "success":
+                anomaly_score = perc_result.get("anomaly_score", 0.5)
+                risk_level = perc_result.get("risk_level", "NORMAL")
+                qos_vector = perc_result.get("qos_vector", req.qos_vector)
+        except Exception as e:
+            logger.error(f"感知服务调用失败: {e}，使用默认值")
+
+    # 2. 初始化异步状态
+    _async_orch_state[poll_token] = {
+        "task_id": task_id,
+        "status": "waiting",
+        "start_time": time.time(),
+        "max_wait": max_wait,
+        "qos_vector": qos_vector,
+        "resource_request": req.resource_request,
+        "vnf_count": req.vnf_count,
+        "anomaly_score": anomaly_score,
+        "risk_level": risk_level,
+        "model_type": model_type,
+    }
+
+    # 3. 启动后台编排线程
+    def do_orchestration():
+        from intelligent_orchestration.orchestration_service import OrchestrationService
+        try:
+            global _orchestration_service
+            if 'service' not in _orchestration_service:
+                _orchestration_service['service'] = OrchestrationService()
+            service = _orchestration_service['service']
+
+            # 清理过期资源
+            try:
+                service.lease_manager.release_due_allocations()
+            except:
+                pass
+
+            message = {
+                "task_id": task_id,
+                "data_id": 0,
+                "qos_vector": qos_vector,
+                "resource_request": req.resource_request,
+                "vnf_count": req.vnf_count,
+                "anomaly_score": anomaly_score,
+                "risk_level": risk_level,
+            }
+
+            result = service.process(message)
+            _async_orch_state[poll_token]["result"] = result
+            _async_orch_state[poll_token]["status"] = "done"
+        except Exception as e:
+            logger.error(f"异步编排失败: {e}")
+            _async_orch_state[poll_token]["status"] = "error"
+            _async_orch_state[poll_token]["error"] = str(e)
+
+    thread = threading.Thread(target=do_orchestration)
+    thread.start()
+
+    return {
+        "status": "waiting",
+        "task_id": task_id,
+        "poll_token": poll_token,
+        "max_wait_seconds": max_wait,
+        "message": "正在等待资源，请轮询 /api/orchestrate/poll 获取结果"
+    }
+
+
+@app.post("/api/orchestrate/poll")
+def orchestrate_poll(req: OrchPollRequest):
+    """轮询异步编排结果"""
+    import time
+
+    poll_token = req.poll_token
+    state = _async_orch_state.get(poll_token)
+
+    if not state:
+        return {"status": "not_found", "error": "poll_token 不存在或已过期"}
+
+    # 计算已等待时间
+    elapsed = time.time() - state.get("start_time", time.time())
+    max_wait = state.get("max_wait", 30)
+
+    if state["status"] == "done":
+        result = state.get("result", {})
+        return {
+            "status": result.get("status", "success"),
+            "task_id": state["task_id"],
+            "elapsed_seconds": round(elapsed, 2),
+            "result": result
+        }
+    elif state["status"] == "error":
+        return {
+            "status": "failed",
+            "task_id": state["task_id"],
+            "elapsed_seconds": round(elapsed, 2),
+            "error": state.get("error", "unknown")
+        }
+    else:
+        # 等待中
+        return {
+            "status": "waiting",
+            "task_id": state["task_id"],
+            "elapsed_seconds": round(elapsed, 2),
+            "max_wait_seconds": max_wait,
+            "progress": min(100, int(elapsed / max_wait * 100)),
+            "message": f"等待资源释放中... ({int(elapsed)}/{max_wait}秒)"
+        }
 
 
 @app.get("/api/history")
@@ -1064,53 +1239,75 @@ def release_allocation(req: ReleaseRequest):
             if not row:
                 return {"status": "error", "message": "分配不存在或已释放"}
 
-            node_alloc = row.get("node_allocation", {})
-            if isinstance(node_alloc, str):
+            node_alloc = row.get("node_allocation")
+            link_path = row.get("link_path")
+
+            node_alloc = row.get("node_allocation") or {}
+            if isinstance(node_alloc, str) and node_alloc.strip():
                 node_alloc = json.loads(node_alloc)
 
-            link_path = row.get("link_path", {})
-            if isinstance(link_path, str):
+            link_path = row.get("link_path") or {}
+            if isinstance(link_path, str) and link_path.strip():
                 link_path = json.loads(link_path)
 
-            # 释放节点资源：UPDATE t_node_compute SET used_cpu_cores = used_cpu_cores - %s
-            for resource_id, usage in node_alloc.items():
-                if isinstance(usage, dict):
-                    release_vcpu = usage.get("vcpu", 0)
-                    release_memory = usage.get("memory_gb", 0)
+            # 释放节点资源
+            if not node_alloc:
+                logger.warning(f"release {req.allocation_id}: node_allocation is empty, skip node release")
+            else:
+                for resource_id, usage in node_alloc.items():
+                    if isinstance(usage, dict):
+                        release_vcpu = usage.get("vcpu", 0)
+                        release_memory = usage.get("memory_gb", 0)
 
                     # 处理 edge-* 格式的节点ID
                     node_id = resource_id
                     if node_id.startswith("node-"):
                         node_id = node_id.replace("node-", "edge-")
 
-                    # UPDATE t_node_compute
-                    c.execute(
-                        "UPDATE t_node_compute SET used_cpu_cores = MAX(0, used_cpu_cores - %s) WHERE node_id=%s",
-                        (release_vcpu, node_id)
-                    )
-                    # UPDATE t_node_storage
-                    c.execute(
-                        "UPDATE t_node_storage SET used_ram_gb = MAX(0, used_ram_gb - %s) WHERE node_id=%s",
-                        (release_memory, node_id)
-                    )
+                    try:
+                        # SELECT获取当前值
+                        c.execute("SELECT used_cpu_cores FROM t_node_compute WHERE node_id=%s", (node_id,))
+                        row = c.fetchone()
+                        current_vcpu = row["used_cpu_cores"] if row else 0
+                        new_vcpu = max(0, current_vcpu - release_vcpu)
+
+                        c.execute("SELECT used_ram_gb FROM t_node_storage WHERE node_id=%s", (node_id,))
+                        row = c.fetchone()
+                        current_ram = row["used_ram_gb"] if row else 0
+                        new_ram = max(0, current_ram - release_memory)
+
+                        # UPDATE t_node_compute
+                        c.execute(
+                            "UPDATE t_node_compute SET used_cpu_cores = %s, allocations = GREATEST(0, allocations - 1) WHERE node_id=%s",
+                            (new_vcpu, node_id)
+                        )
+                        # UPDATE t_node_storage
+                        c.execute(
+                            "UPDATE t_node_storage SET used_ram_gb = %s WHERE node_id=%s",
+                            (new_ram, node_id)
+                        )
+                        logger.info(f"release: {node_id} vcpu {current_vcpu}->{new_vcpu}, ram {current_ram}->{new_ram}, allocations -1")
+                    except Exception as e:
+                        logger.warning(f"release node error: {e}")
 
             # 释放链路资源：UPDATE t_physical_link SET used_bandwidth_mbps = used_bandwidth_mbps - %s
-            for link_idx, link_info in link_path.items():
-                link_id = link_info.get("link_id")
-                release_bw = link_info.get("bandwidth", 0.1)
-                if link_id is not None:
-                    # 处理 edge-* 格式
-                    src_node = link_info.get("src_node", "")
-                    dst_node = link_info.get("dst_node", "")
-                    if src_node.startswith("edge-") and dst_node.startswith("edge-"):
-                        link_id = f"link-{src_node}-{dst_node}"
-                    elif link_id.startswith("link-"):
-                        link_id = link_id
+            if link_path:
+                for link_idx, link_info in link_path.items():
+                    link_id = link_info.get("link_id")
+                    release_bw = link_info.get("bandwidth", 0.1)
+                    if link_id is not None:
+                        # 处理 edge-* 格式
+                        src_node = str(link_info.get("src_node") or "")
+                        dst_node = str(link_info.get("dst_node") or "")
+                        if src_node.startswith("edge-") and dst_node.startswith("edge-"):
+                            link_id = f"link-{src_node}-{dst_node}"
+                        elif link_id.startswith("link-"):
+                            link_id = link_id
 
-                    c.execute(
-                        "UPDATE t_physical_link SET used_bandwidth_mbps = MAX(0, used_bandwidth_mbps - %s) WHERE link_id=%s",
-                        (release_bw, link_id)
-                    )
+                        c.execute(
+                            "UPDATE t_physical_link SET used_bandwidth_mbps = MAX(0, used_bandwidth_mbps - %s), allocations = GREATEST(0, allocations - 1) WHERE link_id=%s",
+                            (release_bw, link_id)
+                        )
 
             # 更新状态
             c.execute("""
@@ -1123,6 +1320,7 @@ def release_allocation(req: ReleaseRequest):
             return {"status": "success", "message": "资源已释放"}
     except Exception as e:
         conn.rollback()
+        logger.error(f"release failed: {e}", exc_info=True)
         return {"status": "error", "message": str(e)}
     finally:
         conn.close()
@@ -1156,56 +1354,74 @@ def auto_release():
             released_count = 0
             for row in rows:
                 allocation_id = row["allocation_id"]
-                node_alloc = row.get("node_allocation", {})
-                if isinstance(node_alloc, str):
+                node_alloc = row.get("node_allocation") or {}
+                if isinstance(node_alloc, str) and node_alloc.strip():
                     node_alloc = json.loads(node_alloc)
 
-                # 释放节点资源：UPDATE t_node_compute SET used_cpu_cores = used_cpu_cores - %s
-                for resource_id, usage in node_alloc.items():
-                    if isinstance(usage, dict):
-                        release_vcpu = usage.get("vcpu", 0)
-                        release_memory = usage.get("memory_gb", 0)
+                # 释放节点资源
+                if not node_alloc:
+                    logger.warning(f"auto_release {allocation_id}: node_allocation is empty, skip node release")
+                else:
+                    for resource_id, usage in node_alloc.items():
+                        if isinstance(usage, dict):
+                            release_vcpu = usage.get("vcpu", 0)
+                            release_memory = usage.get("memory_gb", 0)
 
                         # 处理 edge-* 格式的节点ID
                         node_id = resource_id
                         if node_id.startswith("node-"):
                             node_id = node_id.replace("node-", "edge-")
 
-                        # UPDATE t_node_compute
-                        c.execute(
-                            "UPDATE t_node_compute SET used_cpu_cores = MAX(0, used_cpu_cores - %s) WHERE node_id=%s",
-                            (release_vcpu, node_id)
-                        )
-                        # UPDATE t_node_storage
-                        c.execute(
-                            "UPDATE t_node_storage SET used_ram_gb = MAX(0, used_ram_gb - %s) WHERE node_id=%s",
-                            (release_memory, node_id)
-                        )
+                        try:
+                            # SELECT获取当前值
+                            c.execute("SELECT used_cpu_cores FROM t_node_compute WHERE node_id=%s", (node_id,))
+                            row = c.fetchone()
+                            current_vcpu = row["used_cpu_cores"] if row else 0
+                            new_vcpu = max(0, current_vcpu - release_vcpu)
+
+                            c.execute("SELECT used_ram_gb FROM t_node_storage WHERE node_id=%s", (node_id,))
+                            row = c.fetchone()
+                            current_ram = row["used_ram_gb"] if row else 0
+                            new_ram = max(0, current_ram - release_memory)
+
+                            # UPDATE t_node_compute
+                            c.execute(
+                                "UPDATE t_node_compute SET used_cpu_cores = %s, allocations = GREATEST(0, allocations - 1) WHERE node_id=%s",
+                                (new_vcpu, node_id)
+                            )
+                            # UPDATE t_node_storage
+                            c.execute(
+                                "UPDATE t_node_storage SET used_ram_gb = %s WHERE node_id=%s",
+                                (new_ram, node_id)
+                            )
+                        except Exception as e:
+                            logger.warning(f"auto_release node error: {e}")
 
                 # 释放链路资源：UPDATE t_physical_link SET used_bandwidth_mbps
-                link_path = row.get("link_path", {})
-                if isinstance(link_path, str):
+                link_path = row.get("link_path") or {}
+                if isinstance(link_path, str) and link_path.strip():
                     try:
                         link_path = json.loads(link_path)
                     except:
                         link_path = {}
 
-                for link_idx, link_info in link_path.items():
-                    link_id = link_info.get("link_id")
-                    release_bw = link_info.get("bandwidth", 0.1)
-                    if link_id is not None:
-                        # 处理 edge-* 格式
-                        src_node = link_info.get("src_node", "")
-                        dst_node = link_info.get("dst_node", "")
-                        if src_node.startswith("edge-") and dst_node.startswith("edge-"):
-                            link_id = f"link-{src_node}-{dst_node}"
-                        elif link_id.startswith("link-"):
-                            link_id = link_id
+                if link_path:
+                    for link_idx, link_info in link_path.items():
+                        link_id = link_info.get("link_id")
+                        release_bw = link_info.get("bandwidth", 0.1)
+                        if link_id is not None:
+                            # 处理 edge-* 格式
+                            src_node = str(link_info.get("src_node") or "")
+                            dst_node = str(link_info.get("dst_node") or "")
+                            if src_node.startswith("edge-") and dst_node.startswith("edge-"):
+                                link_id = f"link-{src_node}-{dst_node}"
+                            elif link_id.startswith("link-"):
+                                link_id = link_id
 
-                        c.execute(
-                            "UPDATE t_physical_link SET used_bandwidth_mbps = MAX(0, used_bandwidth_mbps - %s) WHERE link_id=%s",
-                            (release_bw, link_id)
-                        )
+                            c.execute(
+                                "UPDATE t_physical_link SET used_bandwidth_mbps = MAX(0, used_bandwidth_mbps - %s), allocations = GREATEST(0, allocations - 1) WHERE link_id=%s",
+                                (release_bw, link_id)
+                            )
 
                 # 更新状态
                 c.execute("""

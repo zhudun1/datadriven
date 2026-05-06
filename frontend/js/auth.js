@@ -54,7 +54,7 @@ if (loginForm) {
         localStorage.setItem("qos_token", response.token);
       }
       localStorage.setItem("qos_user", JSON.stringify(response?.user || { email }));
-      window.location.href = "./sandbox/index.html";
+      window.location.href = "./sandbox/step1-entry.html";
     } catch (error) {
       setMessage(error.message || "登录失败", "error");
     }

@@ -1,0 +1,1111 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>编排界面 - 资源管理与编排结果</title>
+    <link rel="stylesheet" href="../assets/styles.css" />
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; min-height: 100vh; }
+
+      /* Header */
+      .header { background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); padding: 16px 24px; color: #fff; display: flex; justify-content: space-between; align-items: center; }
+      .header h1 { font-size: 20px; font-weight: 500; }
+      .header .user-info { display: flex; align-items: center; gap: 16px; font-size: 14px; }
+      .logout-btn { background: rgba(255,255,255,0.15); border: none; color: #fff; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+      .logout-btn:hover { background: rgba(255,255,255,0.25); }
+
+      /* Main */
+      .main { max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+      /* Stats Bar */
+      .stats-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+      .stat-card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+      .stat-card .label { font-size: 12px; color: #6b7280; margin-bottom: 4px; }
+      .stat-card .value { font-size: 28px; font-weight: 600; color: #1e3a5f; }
+      .stat-card .unit { font-size: 12px; color: #9ca3af; }
+
+      /* Section */
+      .section { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+      .section-title { font-size: 16px; font-weight: 600; color: #1e3a5f; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
+
+      /* Node Visualization */
+      .nodes-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 24px; }
+      .node-card { text-align: center; }
+      .node-sphere { width: 120px; height: 120px; margin: 0 auto 12px; position: relative; }
+      .sphere-bg { width: 100%; height: 100%; border-radius: 50%; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); position: relative; overflow: hidden; border: 3px solid #e5e7eb; }
+      .sphere-fill { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%); transition: height 0.8s ease; border-radius: 0 0 50% 50%; }
+      .sphere-fill.warning { background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%); }
+      .sphere-fill.danger { background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%); }
+      .sphere-fill.waiting { animation: pulse 1s infinite; }
+      @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+      .node-label { font-size: 14px; font-weight: 600; color: #374151; }
+      .node-info { font-size: 12px; color: #6b7280; margin-top: 4px; }
+      .node-services { font-size: 11px; color: #9ca3af; }
+
+      /* 链路卡片样式 */
+      .link-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; }
+      .link-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+      .link-id { font-size: 14px; font-weight: 600; color: #374151; }
+      .link-status { font-size: 12px; font-weight: 500; }
+      .link-path { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+      .node-tag { background: #e5e7eb; color: #374151; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 6px; min-width: 32px; text-align: center; }
+      .link-line-container { flex: 1; position: relative; height: 12px; }
+      .link-line-bg { position: absolute; width: 100%; height: 100%; background: #e5e7eb; border-radius: 4px; }
+      .link-line-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 4px; transition: width 0.3s ease; min-width: 2px; }
+      .link-percent-text { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); font-size: 9px; font-weight: 600; }
+      .link-info { display: flex; justify-content: space-between; font-size: 12px; color: #6b7280; margin-top: 4px; }
+      .link-services { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+
+      /* Service Count Badge */
+      .service-badge { position: absolute; top: -4px; right: -4px; background: #10b981; color: #fff; font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 10px; min-width: 20px; }
+
+      /* Action Panel */
+      .action-panel { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+      .orch-btn { background: #3b82f6; color: #fff; border: none; padding: 12px 32px; border-radius: 8px; font-size: 16px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+      .orch-btn:hover { background: #2563eb; transform: translateY(-1px); }
+      .orch-btn:disabled { background: #94a3b8; cursor: not-allowed; transform: none; }
+      .orch-btn.loading { background: #3b82f6; animation: pulse 1s infinite; }
+      .orch-btn.secondary { background: #6b7280; }
+      .orch-btn.secondary:hover { background: #4b5563; }
+
+      /* QoS Input */
+      .qos-inputs { display: flex; gap: 16px; flex-wrap: wrap; }
+      .qos-item { display: flex; align-items: center; gap: 8px; }
+      .qos-item label { font-size: 13px; color: #6b7280; min-width: 60px; }
+      .qos-item input { width: 100px; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
+      .qos-item input:focus { outline: none; border-color: #3b82f6; }
+
+      /* History Table */
+      .history-table { width: 100%; border-collapse: collapse; }
+      .history-table th, .history-table td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; font-size: 13px; }
+      .history-table th { background: #f9fafb; font-weight: 600; color: #374151; }
+      .history-table tr:hover { background: #f9fafb; }
+      .status-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; }
+      .status-badge.active { background: #dcfce7; color: #166534; }
+      .status-badge.released { background: #e5e7eb; color: #6b7280; }
+      .status-badge.failed { background: #fee2e2; color: #dc2626; }
+      .timer { color: #6b7280; font-size: 12px; }
+      .timer.warning { color: #f59e0b; }
+      .timer.danger { color: #ef4444; }
+
+      /* Message */
+      .message { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
+      .message.info { background: #dbeafe; color: #1e40af; }
+      .message.success { background: #dcfce7; color: #166534; }
+      .message.warning { background: #fef3c7; color: #92400e; }
+      .message.error { background: #fee2e2; color: #991b1b; }
+
+      /* Feature List */
+      .feature-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px; }
+      .feature-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #f9fafb; border-radius: 8px; }
+      .feature-item .icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+      .feature-item .icon.green { background: #dcfce7; }
+      .feature-item .icon.blue { background: #dbeafe; }
+      .feature-item .icon.yellow { background: #fef3c7; }
+      .feature-item .icon.purple { background: #ede9fe; }
+      .feature-item .text { font-size: 13px; color: #374151; }
+
+      /* 节点拓扑图 */
+      .topology-container { width: 100%; height: 400px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fafafa; position: relative; overflow: hidden; }
+      .topology-svg { width: 100%; height: 100%; }
+      .topology-node { cursor: pointer; transition: transform 0.2s; }
+      .topology-node:hover { transform: scale(1.1); }
+      .topology-node circle { stroke: #3b82f6; stroke-width: 2; }
+      .topology-node text { font-size: 14px; font-weight: 600; fill: #1e3a5f; text-anchor: middle; dominant-baseline: middle; }
+      .topology-node .node-bg { fill: #fff; }
+      .topology-node .node-bg.used { fill: #fef3c7; }
+      .topology-node .node-bg.full { fill: #fee2e2; }
+      .topology-link { stroke: #9ca3af; stroke-width: 2; marker-end: url(#arrowhead); }
+      .topology-link .link-label { font-size: 11px; fill: #6b7280; }
+      .topology-legend { position: absolute; top: 12px; right: 12px; background: rgba(255,255,255,0.95); padding: 12px; border-radius: 8px; font-size: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+      .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+      .legend-item:last-child { margin-bottom: 0; }
+      .legend-circle { width: 12px; height: 12px; border-radius: 50%; border: 2px solid #3b82f6; }
+      .legend-line { width: 24px; height: 2px; background: #9ca3af; }
+
+      /* Loading */
+      .loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.9); display: flex; align-items: center; justify-content: center; z-index: 100; }
+      .loading-overlay .spinner { width: 40px; height: 40px; border: 3px solid #e5e7eb; border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+    <div id="message"></div>
+    <div class="header">
+      <h1>编排界面</h1>
+      <div class="user-info">
+        <span>智能编排系统</span>
+        <button class="logout-btn" onclick="window.location.href='step6-result.html'">编排结果</button>
+        <button class="logout-btn" onclick="logout()">退出</button>
+      </div>
+    </div>
+
+    <div class="main">
+      <!-- 统计 -->
+      <div class="stats-bar">
+        <div class="stat-card">
+          <div class="label">总vCPU</div>
+          <div class="value" id="total-vcpu">0</div>
+          <div class="unit">核</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">可用vCPU</div>
+          <div class="value" id="free-vcpu">0</div>
+          <div class="unit">核</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">活跃分配</div>
+          <div class="value" id="active-allocations">0</div>
+          <div class="unit">个</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">待释放</div>
+          <div class="value" id="pending-release">0</div>
+          <div class="unit">个</div>
+        </div>
+      </div>
+
+      <!-- 资源管理 -->
+      <div class="section">
+        <div class="section-title">
+          资源管理
+          <div style="display: flex; gap: 8px;">
+            <button class="orch-btn" onclick="continueOrchestration()" style="padding: 8px 16px; font-size: 14px; background: #10b981;">继续编排</button>
+            <button class="orch-btn" onclick="refreshResources()" style="padding: 8px 16px; font-size: 14px;">刷新</button>
+          </div>
+        </div>
+
+        <!-- 节点状态 -->
+        <div style="margin-bottom: 24px;">
+          <h4 style="font-size: 14px; color: #374151; margin-bottom: 12px;">节点状态</h4>
+          <div class="nodes-grid" id="nodes-grid"></div>
+        </div>
+
+        <!-- 链路状态 -->
+        <div>
+          <h4 style="font-size: 14px; color: #374151; margin-bottom: 12px;">链路状态</h4>
+          <div id="links-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;"></div>
+        </div>
+      </div>
+
+      <!-- 节点拓扑图 -->
+      <div class="section">
+        <div class="section-title">
+          节点拓扑图
+          <button class="orch-btn" onclick="renderTopology()" style="padding: 8px 16px; font-size: 14px;">刷新拓扑</button>
+        </div>
+        <div class="topology-container" id="topology-container">
+          <svg class="topology-svg" id="topology-svg">
+            <defs>
+              <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#9ca3af" />
+              </marker>
+            </defs>
+          </svg>
+          <div class="topology-legend">
+            <div class="legend-item">
+              <div class="legend-circle" style="background:#fff;"></div>
+              <span>可用节点</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-circle" style="background:#fef3c7;"></div>
+              <span>使用中</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-circle" style="background:#fee2e2;"></div>
+              <span>已占满</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-line"></div>
+              <span>网络链路</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 添加资源对话框 -->
+      <div id="add-resource-dialog" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: #fff; border-radius: 12px; padding: 24px; width: 400px; max-height: 80vh; overflow-y: auto;">
+          <h3 style="font-size: 18px; margin-bottom: 20px;">添加资源</h3>
+
+          <div style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 14px; color: #374151; margin-bottom: 8px;">资源类型</label>
+            <select id="add-resource-type" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;" onchange="toggleResourceForm()">
+              <option value="node">计算节点</option>
+              <option value="link">网络链路</option>
+            </select>
+          </div>
+
+          <!-- 节点表单 -->
+          <div id="node-form">
+            <div style="margin-bottom: 12px;">
+              <label style="display: block; font-size: 13px; color: #6b7280;">节点ID</label>
+              <input type="number" id="add-node-id" value="5" min="0" max="100" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;" />
+            </div>
+            <div style="margin-bottom: 12px;">
+              <label style="display: block; font-size: 13px; color: #6b7280;">vCPU数量</label>
+              <input type="number" id="add-node-vcpu" value="16" min="1" max="128" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;" />
+            </div>
+            <div style="margin-bottom: 12px;">
+              <label style="display: block; font-size: 13px; color: #6b7280;">内存(GB)</label>
+              <input type="number" id="add-node-memory" value="64" min="1" max="512" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;" />
+            </div>
+          </div>
+
+          <!-- 链路表单 -->
+          <div id="link-form" style="display: none;">
+            <div style="margin-bottom: 12px;">
+              <label style="display: block; font-size: 13px; color: #6b7280;">链路ID</label>
+              <input type="number" id="add-link-id" value="8" min="0" max="100" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;" />
+            </div>
+            <div style="margin-bottom: 12px;">
+              <label style="display: block; font-size: 13px; color: #6b7280;">源节点</label>
+              <input type="number" id="add-link-src" value="0" min="0" max="100" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;" />
+            </div>
+            <div style="margin-bottom: 12px;">
+              <label style="display: block; font-size: 13px; color: #6b7280;">目标节点</label>
+              <input type="number" id="add-link-dst" value="1" min="0" max="100" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;" />
+            </div>
+            <div style="margin-bottom: 12px;">
+              <label style="display: block; font-size: 13px; color: #6b7280;">带宽(Gbps)</label>
+              <input type="number" id="add-link-bw" value="10" min="1" max="100" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;" />
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 12px; margin-top: 20px;">
+            <button onclick="addResource()" class="orch-btn" style="flex: 1;">确认添加</button>
+            <button onclick="closeAddResourceDialog()" class="orch-btn secondary" style="flex: 1; background: #6b7280;">取消</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 历史记录 -->
+      <div class="section">
+        <div class="section-title">编排历史记录</div>
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Task ID</th>
+              <th>VNF节点</th>
+              <th>链路</th>
+              <th>QoS</th>
+              <th>奖励</th>
+              <th>状态</th>
+              <th>剩余时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="history-body"></tbody>
+        </table>
+        <!-- 分页 -->
+        <div class="pagination" id="pagination" style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 16px;">
+          <button onclick="changePage(-1)" id="prev-btn" style="padding: 6px 12px; border: 1px solid #d1d5db; background: #fff; border-radius: 4px; cursor: pointer;">上一页</button>
+          <span id="page-info" style="font-size: 13px; color: #6b7280;">1 / 1</span>
+          <button onclick="changePage(1)" id="next-btn" style="padding: 6px 12px; border: 1px solid #d1d5db; background: #fff; border-radius: 4px; cursor: pointer;">下一页</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="loading-overlay" id="loading" style="display: none;">
+      <div class="spinner"></div>
+    </div>
+
+    <script>
+      const API_BASE = "http://127.0.0.1:8001";
+      let resources = {};
+      let historyData = [];
+      let currentPage = 1;
+      const pageSize = 10;
+      let linksData = {};
+
+      // 初始化
+      async function init() {
+        await loadResources();
+        await loadLinks();
+        await loadHistory();
+        startRefreshTimer();
+      }
+
+      // 加载资源
+      async function loadResources() {
+        try {
+          const resp = await fetch(`${API_BASE}/api/resources?t=${Date.now()}`);
+          resources = await resp.json();
+          console.log('loadResources:', JSON.stringify(resources));
+          renderNodes();
+          updateStats();
+        } catch (e) {
+          showMessage("无法加载资源: " + e.message, "error");
+        }
+      }
+
+      // 加载链路
+      async function loadLinks() {
+        try {
+          const resp = await fetch(`${API_BASE}/api/links?t=${Date.now()}`);
+          linksData = await resp.json();
+          console.log('loadLinks:', JSON.stringify(linksData));
+
+          // 同时获取历史记录来确定活跃链路
+          const historyResp = await fetch(`${API_BASE}/api/history?t=${Date.now()}`);
+          const historyData = await historyResp.json();
+
+          // 节点索引到名称的映射
+          const indexToNode = {0: 'edge-1', 1: 'edge-2', 2: 'edge-3', 3: 'cloud-1', 4: 'cloud-2'};
+          // 链路索引到ID的映射
+          const indexToLink = {
+            0: 'link-edge-1-2', 1: 'link-edge-2-3', 2: 'link-edge-1-3',
+            3: 'link-edge-1-cloud1', 4: 'link-edge-2-cloud1', 5: 'link-edge-3-cloud2',
+            6: 'link-cloud1-2', 7: 'link-edge-1-cloud2', 8: 'link-edge-2-cloud2'
+          };
+          // 节点到链路的映射
+          const nodeToLink = {
+            'edge-1-edge-2': 'link-edge-1-2', 'edge-2-edge-1': 'link-edge-1-2',
+            'edge-1-edge-3': 'link-edge-1-3', 'edge-3-edge-1': 'link-edge-1-3',
+            'edge-2-edge-3': 'link-edge-2-3', 'edge-3-edge-2': 'link-edge-2-3',
+            'edge-1-cloud-1': 'link-edge-1-cloud1', 'cloud-1-edge-1': 'link-edge-1-cloud1',
+            'edge-1-cloud-2': 'link-edge-1-cloud2', 'cloud-2-edge-1': 'link-edge-1-cloud2',
+            'edge-2-cloud-1': 'link-edge-2-cloud1', 'cloud-1-edge-2': 'link-edge-2-cloud1',
+            'edge-3-cloud-2': 'link-edge-3-cloud2', 'cloud-2-edge-3': 'link-edge-3-cloud2',
+            'cloud-1-cloud-2': 'link-cloud1-2', 'cloud-2-cloud-1': 'link-cloud1-2'
+          };
+
+          // 构建活跃节点集合和链路使用量
+          const activeNodes = new Set();
+          const linkUsage = {}; // link_name -> used bandwidth
+
+          historyData.forEach(h => {
+            if (h.status === 'active') {
+              // 收集活跃节点
+              if (h.node_allocation) {
+                Object.keys(h.node_allocation).forEach(n => activeNodes.add(n));
+              }
+              // 计算活跃链路的带宽使用
+              if (h.link_path) {
+                Object.values(h.link_path).forEach(lp => {
+                  // 首先尝试使用link_id数字索引
+                  if (lp.link_id !== undefined && lp.link_id !== null) {
+                    const linkId = indexToLink[lp.link_id];
+                    if (linkId) {
+                      const bw = lp.bandwidth || 0.25;
+                      linkUsage[linkId] = (linkUsage[linkId] || 0) + bw;
+                      console.log('Found link by index:', lp.link_id, '->', linkId, 'bw:', bw);
+                    }
+                  }
+                  // 如果link_id无效，尝试通过src/dst节点查找
+                  if (!linkUsage[Object.keys(linkUsage).pop()] && lp.src !== undefined && lp.dst !== undefined) {
+                    const srcNode = indexToNode[lp.src];
+                    const dstNode = indexToNode[lp.dst];
+                    if (srcNode && dstNode) {
+                      const linkKey = `${srcNode}-${dstNode}`;
+                      const linkId = nodeToLink[linkKey] || nodeToLink[`${dstNode}-${srcNode}`];
+                      if (linkId) {
+                        const bw = lp.bandwidth || 0.25;
+                        linkUsage[linkId] = (linkUsage[linkId] || 0) + bw;
+                        console.log('Found link by nodes:', srcNode, '->', dstNode, '->', linkId);
+                      }
+                    }
+                  }
+                });
+              }
+            }
+          });
+
+          console.log('Link usage from history:', linkUsage);
+
+          // 调试：打印每个历史记录的link_path结构
+          console.log('=== DEBUG: history link_path ===');
+          historyData.forEach((h, i) => {
+            if (h.status === 'active') {
+              console.log(`History[${i}] status=${h.status}, link_path=`, JSON.stringify(h.link_path));
+            }
+          });
+
+          // 为每条链路添加active标记和实际使用带宽
+          Object.keys(linksData).forEach(linkId => {
+            const link = linksData[linkId];
+            const srcNode = link.src_node;
+            const dstNode = link.dst_node;
+
+            // 使用历史记录计算的实际使用带宽
+            link.used_bandwidth_mbps = linkUsage[linkId] || link.used_bandwidth_mbps || 0;
+
+            // 如果链路两端节点都活跃，则认为链路活跃
+            link.isActive = linkUsage[linkId] > 0 || (activeNodes.has(srcNode) && activeNodes.has(dstNode));
+          });
+
+          console.log('Active nodes:', [...activeNodes], 'Processed links:', linksData);
+          renderLinks();
+          renderTopology();
+        } catch (e) {
+          console.error("无法加载链路:", e);
+        }
+      }
+
+      // 渲染节点拓扑图
+      function renderTopology() {
+        const svg = document.getElementById("topology-svg");
+        const container = document.getElementById("topology-container");
+        if (!svg || !container) return;
+
+        // 清空SVG内容（保留defs）
+        const defs = svg.querySelector("defs");
+        svg.innerHTML = "";
+        if (defs) svg.appendChild(defs);
+
+        // 设置SVG viewBox
+        const width = container.clientWidth || 800;
+        const height = container.clientHeight || 400;
+        svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+        const nodeIds = Object.keys(resources).sort((a, b) => a - b);
+        const linkKeys = Object.keys(linksData).sort((a, b) => a - b);
+
+        if (nodeIds.length === 0) {
+          svg.innerHTML += `<text x="${width/2}" y="${height/2}" fill="#9ca3af" text-anchor="middle">暂无节点数据</text>`;
+          return;
+        }
+
+        // 计算节点位置（圆形布局）
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const radius = Math.min(width, height) * 0.35;
+        const nodePositions = {};
+
+        nodeIds.forEach((nodeId, idx) => {
+          const angle = (2 * Math.PI * idx / nodeIds.length) - Math.PI / 2;
+          nodePositions[nodeId] = {
+            x: centerX + radius * Math.cos(angle),
+            y: centerY + radius * Math.sin(angle)
+          };
+        });
+
+        // 先画链路（放在节点下面）
+        linkKeys.forEach(linkId => {
+          const link = linksData[linkId];
+          // 确保使用字符串键查找节点位置
+          const srcNodeKey = String(link.src_node);
+          const dstNodeKey = String(link.dst_node);
+          const src = nodePositions[srcNodeKey];
+          const dst = nodePositions[dstNodeKey];
+
+          if (src && dst) {
+            // 绘制链路
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", src.x);
+            line.setAttribute("y1", src.y);
+            line.setAttribute("x2", dst.x);
+            line.setAttribute("y2", dst.y);
+            line.setAttribute("class", "topology-link");
+
+            // 使用链路自己的isActive属性或检查两端节点
+            const linkActive = link.isActive ||
+                            (resources[link.src_node]?.allocations > 0 && resources[link.dst_node]?.allocations > 0);
+
+            line.setAttribute("stroke", linkActive ? "#3b82f6" : "#9ca3af");
+            line.setAttribute("stroke-width", linkActive ? "4" : "2");
+            line.setAttribute("opacity", linkActive ? "1" : "0.5");
+            svg.appendChild(line);
+          }
+        });
+
+        // 再画节点
+        nodeIds.forEach(nodeId => {
+          const r = resources[nodeId];
+          const pos = nodePositions[nodeId];
+          const fillPercent = r.free_vcpu / r.total_vcpu;
+
+          let bgClass = "";
+          if (r.free_vcpu === 0) bgClass = "full";
+          else if (r.allocations > 0) bgClass = "used";
+
+          // 节点组
+          const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          g.setAttribute("class", "topology-node");
+          g.setAttribute("transform", `translate(${pos.x}, ${pos.y})`);
+
+          // 节点圆圈背景
+          const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+          circle.setAttribute("r", "28");
+          circle.setAttribute("class", `node-bg ${bgClass}`);
+          circle.setAttribute("fill", bgClass === "full" ? "#fee2e2" : bgClass === "used" ? "#fef3c7" : "#fff");
+          circle.setAttribute("stroke", "#3b82f6");
+          circle.setAttribute("stroke-width", "2");
+          g.appendChild(circle);
+
+          // 节点ID
+          const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          text.setAttribute("y", "0");
+          text.setAttribute("font-size", "14px");
+          text.setAttribute("font-weight", "600");
+          text.setAttribute("fill", "#1e3a5f");
+          text.setAttribute("text-anchor", "middle");
+          text.setAttribute("dominant-baseline", "middle");
+          text.textContent = `N${nodeId}`;
+          g.appendChild(text);
+
+          // 节点信息（资源使用情况）
+          const info = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          info.setAttribute("y", "42");
+          info.setAttribute("font-size", "11px");
+          info.setAttribute("fill", "#6b7280");
+          info.setAttribute("text-anchor", "middle");
+          info.textContent = `${r.free_vcpu}/${r.total_vcpu} vCPU`;
+          g.appendChild(info);
+
+          // allocation badge
+          if (r.allocations > 0) {
+            const badge = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            badge.setAttribute("cx", "22");
+            badge.setAttribute("cy", "-22");
+            badge.setAttribute("r", "10");
+            badge.setAttribute("fill", "#10b981");
+            g.appendChild(badge);
+
+            const badgeText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            badgeText.setAttribute("x", "22");
+            badgeText.setAttribute("y", "-22");
+            badgeText.setAttribute("font-size", "10px");
+            badgeText.setAttribute("font-weight", "600");
+            badgeText.setAttribute("fill", "#fff");
+            badgeText.setAttribute("text-anchor", "middle");
+            badgeText.setAttribute("dominant-baseline", "middle");
+            badgeText.textContent = r.allocations;
+            g.appendChild(badgeText);
+          }
+
+          svg.appendChild(g);
+        });
+      }
+
+      // 渲染链路 - 使用横向进度条样式
+      function renderLinks() {
+        const grid = document.getElementById("links-list");
+        if (!grid) return;
+        grid.innerHTML = "";
+
+        Object.keys(linksData).sort((a,b) => a-b).forEach(linkId => {
+          const l = linksData[linkId];
+
+          // 检查链路两端的节点是否都有活跃分配
+          const srcAlloc = resources[l.src_node]?.allocations || 0;
+          const dstAlloc = resources[l.dst_node]?.allocations || 0;
+          const linkActive = l.isActive || (srcAlloc > 0 && dstAlloc > 0);
+
+          // 计算使用百分比 - 强制给最小值显示
+          let usedMbps = l.used_bandwidth_mbps || 0;
+          // 如果链路活跃但没有记录到带宽，给一个假设值
+          if (linkActive && usedMbps === 0) {
+            usedMbps = 0.25; // 假设使用了0.25Mbps
+            console.log('DEBUG: Set usedMbps=0.25 for active link:', linkId);
+          }
+
+          const totalMbps = l.bandwidth_mbps || 1000;
+          const usedPercent = totalMbps > 0 ? (usedMbps / totalMbps) * 100 : 0;
+
+          // 强制显示状态 - 如果linkActive为true，一定显示使用中
+          let barColor = "#10b981"; // 绿色
+          let statusText = "空闲";
+          // 如果链路是活跃的，强制显示25%宽度以便能看到
+          let displayPercent = usedPercent;
+          if (linkActive) {
+            barColor = "#f59e0b"; // 黄色-使用中
+            statusText = "使用中";
+            displayPercent = 25; // 强制显示25%
+            console.log('DEBUG: Link', linkId, 'is active, color=', barColor);
+          } else if (usedPercent >= 80) {
+            barColor = "#ef4444"; // 红色-满载
+            statusText = "满载";
+          }
+
+          // 格式化显示
+          const usedDisplay = usedMbps >= 1000 ? (usedMbps / 1000).toFixed(1) + ' G' : usedMbps.toFixed(0) + ' M';
+          const totalDisplay = totalMbps >= 1000 ? (totalMbps / 1000).toFixed(0) + ' G' : totalMbps.toFixed(0) + ' M';
+
+          grid.innerHTML += `
+            <div class="link-card" style="border-left: 4px solid ${barColor};">
+              <div class="link-header">
+                <span class="link-id">链路 ${linkId}</span>
+                <span class="link-status" style="color: ${barColor}; font-weight: bold;">${statusText}</span>
+              </div>
+              <div class="link-path">
+                <span class="node-tag">${l.src_node}</span>
+                <div class="link-line-container" style="background: ${linkActive ? barColor : '#e5e7eb'};">
+                  <div class="link-line-fill" style="width: ${displayPercent}%; background: ${barColor}; height: 12px; display: block;"></div>
+                  <span class="link-percent-text" style="color: ${usedPercent > 30 ? '#fff' : '#666'}; position: absolute; right: 5px; top: 50%; transform: translateY(-50%); font-size: 10px;">${linkActive ? '使用中' : usedPercent.toFixed(0) + '%'}</span>
+                </div>
+                <span class="node-tag">${l.dst_node}</span>
+              </div>
+              <div class="link-info">
+                <span>${usedDisplay} / ${totalDisplay} Mbps</span>
+                ${linkActive ? `<span class="link-services" style="color:${barColor}; font-weight: bold;">● 使用中</span>` : ''}
+              </div>
+            </div>
+          `;
+          console.log('Generated HTML for', linkId, ': barColor=', barColor, 'usedPercent=', usedPercent, 'displayPercent=', displayPercent);
+        });
+      }
+
+      // 显示添加资源对话框
+      function showAddResourceDialog() {
+        document.getElementById("add-resource-dialog").style.display = "flex";
+        // 重置表单
+        document.getElementById("add-resource-type").value = "node";
+        toggleResourceForm();
+        // 自动生成下一个节点ID
+        const nextNodeId = Object.keys(resources).length > 0 ?
+          Math.max(...Object.keys(resources).map(Number)) + 1 : 0;
+        document.getElementById("add-node-id").value = nextNodeId;
+      }
+
+      // 关闭添加资源对话框
+      function closeAddResourceDialog() {
+        document.getElementById("add-resource-dialog").style.display = "none";
+      }
+
+      // 根据资源类型切换表单
+      function toggleResourceForm() {
+        const type = document.getElementById("add-resource-type").value;
+        document.getElementById("node-form").style.display = type === "node" ? "block" : "none";
+        document.getElementById("link-form").style.display = type === "link" ? "block" : "none";
+
+        if (type === "link") {
+          // 自动生成下一个链路ID
+          const nextLinkId = Object.keys(linksData).length > 0 ?
+            Math.max(...Object.keys(linksData).map(Number)) + 1 : 0;
+          document.getElementById("add-link-id").value = nextLinkId;
+        }
+      }
+
+      // 添加资源
+      async function addResource() {
+        const type = document.getElementById("add-resource-type").value;
+
+        if (type === "node") {
+          // 添加节点
+          const nodeId = parseInt(document.getElementById("add-node-id").value);
+          const vcpu = parseInt(document.getElementById("add-node-vcpu").value) || 16;
+          const memory = parseInt(document.getElementById("add-node-memory").value) || 64;
+
+          if (isNaN(nodeId) || nodeId < 0) {
+            showMessage("请输入有效的节点ID", "error");
+            return;
+          }
+
+          try {
+            const resp = await fetch(`${API_BASE}/resources/nodes`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                node_id: nodeId,
+                vcpu: vcpu,
+                memory_gb: memory
+              })
+            });
+            const result = await resp.json();
+            if (result.status === "success") {
+              showMessage(`节点 ${nodeId} 添加成功 (${vcpu} vCPU, ${memory} GB)`, "success");
+              closeAddResourceDialog();
+              await loadResources();
+              renderTopology();
+            } else {
+              showMessage("添加失败: " + (result.error || "未知错误"), "error");
+            }
+          } catch (e) {
+            showMessage("请求失败: " + e.message, "error");
+          }
+        } else {
+          // 添加链路
+          const linkId = parseInt(document.getElementById("add-link-id").value);
+          const srcNode = parseInt(document.getElementById("add-link-src").value);
+          const dstNode = parseInt(document.getElementById("add-link-dst").value);
+          const bw = parseInt(document.getElementById("add-link-bw").value) || 10;
+
+          if (isNaN(linkId) || isNaN(srcNode) || isNaN(dstNode)) {
+            showMessage("请输入有效的链路信息", "error");
+            return;
+          }
+
+          if (srcNode === dstNode) {
+            showMessage("源节点和目标节点不能相同", "error");
+            return;
+          }
+
+          try {
+            const resp = await fetch(`${API_BASE}/resources/links`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                link_id: linkId,
+                src_node: srcNode,
+                dst_node: dstNode,
+                bandwidth_gbps: bw
+              })
+            });
+            const result = await resp.json();
+            if (result.status === "success") {
+              showMessage(`链路 ${linkId} 添加成功 (${srcNode} → ${dstNode}, ${bw} Gbps)`, "success");
+              closeAddResourceDialog();
+              await loadLinks();
+            } else {
+              showMessage("添加失败: " + (result.error || "未知错误"), "error");
+            }
+          } catch (e) {
+            showMessage("请求失败: " + e.message, "error");
+          }
+        }
+      }
+
+      // 渲染节点
+      function renderNodes() {
+        const grid = document.getElementById("nodes-grid");
+        grid.innerHTML = "";
+
+        Object.keys(resources).sort((a,b) => a-b).forEach(nodeId => {
+          const r = resources[nodeId];
+          const usedPercent = ((r.total_vcpu - r.free_vcpu) / r.total_vcpu * 100);
+          const fillPercent = (r.free_vcpu / r.total_vcpu * 100);
+
+          let fillClass = "";
+          if (r.allocations > 0 && r.free_vcpu < 8) fillClass = "warning";
+          if (r.free_vcpu === 0) fillClass = "danger";
+
+          grid.innerHTML += `
+            <div class="node-card">
+              <div class="node-sphere">
+                <div class="sphere-bg">
+                  <div class="sphere-fill ${fillClass}" style="height: ${fillPercent}%;">
+                    ${r.allocations > 0 ? `<span class="service-badge">${r.allocations}</span>` : ''}
+                  </div>
+                </div>
+              </div>
+              <div class="node-label">节点 ${nodeId}</div>
+              <div class="node-info">可用: ${r.free_vcpu} vCPU / ${r.total_vcpu}</div>
+              <div class="node-services">${r.allocations} 个服务</div>
+            </div>
+          `;
+        });
+      }
+
+      // 更新统计
+      function updateStats() {
+        let totalVcpu = 0, freeVcpu = 0, activeAlloc = 0;
+        Object.values(resources).forEach(r => {
+          totalVcpu += r.total_vcpu;
+          freeVcpu += r.free_vcpu;
+          activeAlloc += r.allocations;
+        });
+        document.getElementById("total-vcpu").textContent = totalVcpu;
+        document.getElementById("free-vcpu").textContent = freeVcpu;
+        document.getElementById("active-allocations").textContent = activeAlloc;
+
+        // 计算待释放
+        const pending = historyData.filter(h => h.status === "active").length;
+        document.getElementById("pending-release").textContent = pending;
+      }
+
+      // 提交编排
+      async function submitOrchestration() {
+        const btn = document.getElementById("orch-btn");
+        const reqBw = parseInt(document.getElementById("req-bw").value) || 8;
+        const reqMem = parseInt(document.getElementById("req-mem").value) || 16;
+
+        btn.disabled = true;
+        btn.textContent = "处理中...";
+        btn.classList.add("loading");
+        showMessage("正在提交编排请求...", "info");
+
+        try {
+          const taskId = "web-" + Date.now();
+          const resp = await fetch(`${API_BASE}/api/orchestrate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              task_id: taskId,
+              qos_vector: [0.8, 0.1, 1.0, 0.05],
+              resource_request: { vcpu: reqBw, memory: reqMem }
+            })
+          });
+
+          const result = await resp.json();
+
+          if (result.status === "success") {
+            // 刷新资源
+            await loadResources();
+            await loadHistory();
+
+            // 触发资源不足警告
+            if (result.error || result.resource_ok === false) {
+              showMessage("警告: 资源不足或等待超时!", "warning");
+            }
+          } else {
+            showMessage(`编排失败: ${result.error}`, "error");
+          }
+        } catch (e) {
+          showMessage("请求失败: " + e.message, "error");
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "提交编排";
+          btn.classList.remove("loading");
+        }
+      }
+
+      // 加载历史
+      async function loadHistory() {
+        try {
+          const resp = await fetch(`${API_BASE}/api/history`);
+          historyData = await resp.json();
+          renderHistory();
+        } catch (e) {
+          console.error("无法加载历史:", e);
+          // 即使后端历史加载失败，也尝试加载本地历史
+          renderHistory();
+        }
+      }
+
+      // 加载本地编排历史记录
+      function loadLocalOrchestrationHistory() {
+        try {
+          return JSON.parse(localStorage.getItem("orchestration_history") || "[]");
+        } catch {
+          return [];
+        }
+      }
+
+      // 渲染历史
+      function renderHistory() {
+        const tbody = document.getElementById("history-body");
+        tbody.innerHTML = "";
+
+        // 合并后端历史和本地历史
+        let allHistory = [...historyData];
+
+        // 添加本地编排历史（来自直接编排）
+        const localHistory = loadLocalOrchestrationHistory();
+        const now = new Date();
+
+        // 用于去重：记录已在后端出现的task_id
+        const backendTaskIds = new Set(historyData.map(h => h.task_id));
+
+        localHistory.forEach((h, idx) => {
+          // 跳过已在后端存在的记录（避免重复显示）
+          if (h.task_id && backendTaskIds.has(h.task_id)) {
+            return;
+          }
+
+          let releaseTime = null;
+          let calculatedStatus = h.status;
+          if (h.status === "success" && h.createdAt) {
+            const created = new Date(h.createdAt);
+            releaseTime = new Date(created.getTime() + 60000);
+            if (now >= releaseTime) {
+              calculatedStatus = "released";
+            }
+          }
+
+          allHistory.push({
+            allocation_id: h.task_id?.substring(0, 8) || "-",
+            task_id: h.task_id || "-",
+            vnf_node: h.result?.vnf_node || [],
+            link_path: h.result?.link_path || {},
+            qos_vector: h.qos_vector || [],
+            reward: h.result?.reward || 0,
+            status: calculatedStatus,
+            release_time: releaseTime ? releaseTime.toISOString() : null,
+            isLocal: true,
+            localIndex: idx,
+            createdAt: h.createdAt
+          });
+        });
+
+        // 按时间排序
+        allHistory.sort((a, b) => {
+          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return timeB - timeA;
+        });
+
+        // 计算分页
+        const totalItems = allHistory.length;
+        const totalPages = Math.ceil(totalItems / pageSize) || 1;
+        if (currentPage > totalPages) currentPage = totalPages;
+
+        const start = (currentPage - 1) * pageSize;
+        const end = start + pageSize;
+        const pageData = allHistory.slice(start, end);
+
+        // 渲染当前页
+        pageData.forEach((h) => {
+          let timerClass = "";
+          let remaining = "";
+
+          if (h.status === "active" && h.release_time) {
+            const release = new Date(h.release_time);
+            const now = new Date();
+            const secs = Math.max(0, Math.floor((release - now) / 1000));
+            remaining = `${secs}秒`;
+            if (secs <= 10) timerClass = "danger";
+            else if (secs <= 30) timerClass = "warning";
+          } else if (h.isLocal && h.createdAt && h.status === "active") {
+            const created = new Date(h.createdAt);
+            const releaseTime = new Date(created.getTime() + 60000);
+            const now = new Date();
+            const secs = Math.max(0, Math.floor((releaseTime - now) / 1000));
+            remaining = `${secs}秒`;
+            if (secs <= 10) timerClass = "danger";
+            else if (secs <= 30) timerClass = "warning";
+          }
+
+          const isLocal = h.isLocal ? '<span style="color:#10b981;font-size:11px;">[直接编排]</span>' : '';
+
+          let actionButtons = '';
+          if (h.isLocal) {
+            actionButtons = `<button onclick="deleteHistoryRecord(${h.localIndex}, true)" style="padding:4px 8px;font-size:11px;background:#ef4444;color:#fff;border:none;border-radius:4px;cursor:pointer;">删除</button>`;
+          } else if (h.status === "active") {
+            actionButtons = `<button onclick="releaseAllocation(${h.allocation_id})" style="padding:4px 8px;font-size:11px;background:#f59e0b;color:#fff;border:none;border-radius:4px;cursor:pointer;">释放</button>`;
+          } else if (h.status === "released") {
+            actionButtons = `<button onclick="deleteHistoryRecord(${h.allocation_id}, false)" style="padding:4px 8px;font-size:11px;background:#ef4444;color:#fff;border:none;border-radius:4px;cursor:pointer;">删除</button>`;
+          } else {
+            actionButtons = '<span style="color:#9ca3af;font-size:11px;">-</span>';
+          }
+
+          tbody.innerHTML += `
+            <tr>
+              <td>${h.allocation_id}</td>
+              <td>${h.task_id} ${isLocal}</td>
+              <td>[${h.vnf_node?.join(", ")}]</td>
+              <td>${h.link_path && Object.keys(h.link_path).length > 0 ? JSON.stringify(h.link_path) : '-'}</td>
+              <td>${h.qos_vector?.slice(0,2).join(", ")}</td>
+              <td>${h.reward?.toFixed(1)}</td>
+              <td><span class="status-badge ${h.status}">${h.status}</span></td>
+              <td class="timer ${timerClass}">${remaining}</td>
+              <td>${actionButtons}</td>
+            </tr>
+          `;
+        });
+
+        // 更新分页控件
+        document.getElementById("page-info").textContent = `${currentPage} / ${totalPages}`;
+        document.getElementById("prev-btn").disabled = currentPage <= 1;
+        document.getElementById("next-btn").disabled = currentPage >= totalPages;
+      }
+
+      // 切换页面
+      function changePage(delta) {
+        const newPage = currentPage + delta;
+        // 计算总页数
+        let allHistory = [...historyData];
+        const localHistory = loadLocalOrchestrationHistory();
+        allHistory = [...allHistory, ...localHistory];
+        const totalPages = Math.ceil(allHistory.length / pageSize) || 1;
+
+        if (newPage >= 1 && newPage <= totalPages) {
+          currentPage = newPage;
+          renderHistory();
+        }
+      }
+
+      // 删除历史记录
+      async function deleteHistoryRecord(idOrIndex, isLocal) {
+        if (!confirm("确认删除此历史记录?")) return;
+
+        if (isLocal) {
+          // 删除本地历史记录
+          try {
+            let history = JSON.parse(localStorage.getItem("orchestration_history") || "[]");
+            // 删除对应索引的记录
+            history.splice(idOrIndex, 1);
+            localStorage.setItem("orchestration_history", JSON.stringify(history));
+            showMessage("记录已删除", "success");
+            await loadHistory();
+          } catch (e) {
+            showMessage("删除失败: " + e.message, "error");
+          }
+        } else {
+          // 删除后端历史记录
+          try {
+            const resp = await fetch(`${API_BASE}/api/history`, {
+              method: "DELETE",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ allocation_id: idOrIndex })
+            });
+            const result = await resp.json();
+            if (result.status === "success") {
+              showMessage("记录已删除", "success");
+              await loadHistory();
+            } else {
+              showMessage("删除失败: " + (result.error || "未知错误"), "error");
+            }
+          } catch (e) {
+            showMessage("请求失败: " + e.message, "error");
+          }
+        }
+      }
+
+      // 释放分配
+      async function releaseAllocation(id) {
+        if (!confirm("确认释放此资源分配?")) return;
+        try {
+          const resp = await fetch(`${API_BASE}/api/release`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ allocation_id: id })
+          });
+          const result = await resp.json();
+          if (result.status === "success") {
+            showMessage(result.message || "已释放", "success");
+            await loadResources();
+            await loadHistory();
+          } else {
+            showMessage(result.message || "释放失败", "error");
+          }
+        } catch (e) {
+          showMessage("释放失败: " + e.message, "error");
+        }
+      }
+
+      // 刷新资源
+      async function refreshResources() {
+        await loadResources();
+        await loadHistory();
+        showMessage("已刷新", "info");
+      }
+
+      // 定时刷新
+      function startRefreshTimer() {
+        setInterval(async () => {
+          // 先调用自动释放API
+          try {
+            await fetch(`${API_BASE}/api/release/auto`, { method: "POST" });
+          } catch (e) {
+            // 忽略自动释放错误
+          }
+          // 然后刷新数据
+          loadResources();
+          loadLinks();
+          loadHistory();
+        }, 5000);
+      }
+
+      // 消息
+      function showMessage(text, type) {
+        document.getElementById("message").innerHTML = `<div class="message ${type}">${text}</div>`;
+      }
+
+      // 登出
+      function logout() {
+        localStorage.removeItem("qos_token");
+        window.location.href = "../index.html";
+      }
+
+      // 继续编排 - 跳回step1
+      function continueOrchestration() {
+        window.location.href = "step1-entry.html";
+      }
+
+      init();
+    </script>
+  </body>
+</html>

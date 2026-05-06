@@ -7,7 +7,11 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# 环境变量支持 Docker 部署
+# 添加CFM模型需要的路径
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(BASE_DIR, "models"))
+
+# 环境变量支持本地/云端部署
 MYSQL_HOST = os.environ.get("MYSQL_HOST", "127.0.0.1")
 MYSQL_PORT = int(os.environ.get("MYSQL_PORT", "3306"))
 MYSQL_USER = os.environ.get("MYSQL_USER", "qos_app")
@@ -92,23 +96,68 @@ class PerceptionService:
         self._ensure_perception_log_table()
         logger.info("业务感知服务初始化完成")
 
-    def _ensure_models(self):
-        """延迟加载模型，尝试 CPU 模式"""
-        if self.detector is None:
+    def _ensure_models(self, model_type: str = "CFM"):
+        """延迟加载模型，根据model_type加载对应的检测器"""
+        key = f"{model_type}_loaded"
+
+        # 检查是否已加载该模型
+        if hasattr(self, key) and getattr(self, key):
+            return
+
+        try:
+            from business_perception.qos_translator import QoSTranslatorV3 as QoSTranslator
+        except ImportError:
             try:
-                # 尝试导入并加载模型（CPU 模式）
+                from business_perception.qos_translator import QoSTranslatorV2 as QoSTranslator
+            except ImportError:
+                try:
+                    from business_perception.qos_translator import QoSTranslator as QoSTranslator
+                except ImportError:
+                    QoSTranslator = None
+
+        try:
+            if model_type == "CFM":
                 from business_perception.cfm_detector import CFMDetector
-                from business_perception.qos_translator import QoSTranslator
-                # 强制使用 CPU
                 self.detector = CFMDetector(CLASS_NAME, CHECKPOINT_PATH, "cpu")
-                self.translator = QoSTranslator()
-                logger.info("模型加载完成（CPU模式）")
-            except Exception as e:
-                logger.error(f"模型加载失败: {e}")
-                # 启用降级模式
-                self.detector = None
-                self.translator = None
-                logger.warning("感知服务降级为仅传递消息模式")
+                self.translator = QoSTranslator() if QoSTranslator else None
+                self.cfm_loaded = True
+                logger.info("CFM模型加载完成（CPU模式）")
+            elif model_type == "Jigsaw":
+                # 动态加载Jigsaw检测器
+                import importlib.util
+                import os
+                BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                jigsaw_detector_path = os.path.join(BASE_DIR, "business_perception", "jigsaw_detector.py")
+                if os.path.exists(jigsaw_detector_path):
+                    spec = importlib.util.spec_from_file_location("jigsaw_module", jigsaw_detector_path)
+                    jigsaw_module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(jigsaw_module)
+                    JigsawVADDetector = jigsaw_module.JigsawVADDetector
+
+                    # 获取Jigsaw模型路径
+                    jigsaw_base = os.path.join(BASE_DIR, "Jigsaw-VAD-main", "checkpoints")
+                    jigsaw_checkpoint = os.path.join(jigsaw_base, "avenue_92.18.pth")
+                    if not os.path.exists(jigsaw_checkpoint):
+                        # 查找其他可能的路径
+                        jigsaw_base = os.path.join(BASE_DIR, "checkpoints")
+                        for f in os.listdir(jigsaw_base):
+                            if f.endswith('.pth'):
+                                jigsaw_checkpoint = os.path.join(jigsaw_base, f)
+                                break
+
+                    self.jigsaw_detector = JigsawVADDetector(
+                        checkpoint_path=jigsaw_checkpoint,
+                        time_length=7,
+                        device="cpu"
+                    )
+                    self.jigsaw_translator = QoSTranslator() if QoSTranslator else None
+                    self.jigsaw_loaded = True
+                    logger.info(f"Jigsaw模型加载完成: {jigsaw_checkpoint}")
+                else:
+                    logger.warning("Jigsaw检测器文件不存在")
+        except Exception as e:
+            logger.error(f"模型加载失败 [{model_type}]: {e}")
+            logger.warning(f"感知服务降级模式 [{model_type}]")
 
     def _ensure_perception_log_table(self):
         """确保感知日志表存在"""
@@ -134,36 +183,76 @@ class PerceptionService:
         conn.close()
 
     def process(self, message: dict) -> dict:
-        # 确保模型已加载
-        self._ensure_models()
+        # 获取模型类型
+        model_type = message.get("model_type", "CFM")
+
+        # 根据模型类型加载对应模型
+        self._ensure_models(model_type)
 
         task_id = message.get("task_id", "unknown")
         data_id = message.get("data_id", 0)
-        rgb_path = message.get("rgb_path", "")
-        pcd_path = message.get("pcd_path", "")
 
-        logger.info(f"[{task_id}] 开始处理: {rgb_path}")
+        # 根据模型类型获取路径
+        if model_type == "Jigsaw":
+            video_path = message.get("video_path", "")
+            aux_image_path = message.get("aux_image_path", "")
+        else:
+            video_path = ""
+            aux_image_path = ""
+            rgb_path = message.get("rgb_path", "")
+            pcd_path = message.get("pcd_path", "")
+
+        logger.info(f"[{task_id}] 开始处理 [{model_type}]: {video_path or aux_image_path or rgb_path}")
 
         try:
-            # 检查是否为降级模式
-            if self.detector is None:
-                # 降级模式：跳过模型推理，直接使用默认 QoS 向量
+            # Jigsaw模式
+            if model_type == "Jigsaw":
+                if hasattr(self, 'jigsaw_detector') and self.jigsaw_detector:
+                    # 使用Jigsaw模型进行检测
+                    if video_path:
+                        anomaly_score = self.jigsaw_detector.get_anomaly_score(video_path=video_path)
+                    elif aux_image_path:
+                        anomaly_score = self.jigsaw_detector.get_anomaly_score(image_path=aux_image_path)
+                    else:
+                        anomaly_score = 0.5
+                    logger.info(f"[{task_id}] Jigsaw异常分数: {anomaly_score:.4f}")
+
+                    # 使用Jigsaw翻译器
+                    if hasattr(self, 'jigsaw_translator') and self.jigsaw_translator:
+                        risk_level, qos_vector = self.jigsaw_translator.translate_simple(float(anomaly_score))
+                    else:
+                        risk_level, qos_vector = self.translator.translate_simple(float(anomaly_score))
+                    qos_list = qos_vector.round(4).tolist() if hasattr(qos_vector, 'round') else [0.3, 0.3, 0.3, 0.3]
+                    logger.info(f"[{task_id}] 风险等级: {risk_level}, QoS向量: {qos_list}")
+                else:
+                    # Jigsaw模型未加载，使用降级模式
+                    logger.warning(f"[{task_id}] Jigsaw模型未加载，使用默认分数")
+                    anomaly_score = 0.5
+                    risk_level = "medium"
+                    qos_list = [10.0, 5.0, 1, 0.01]
+            # CFM模式
+            elif self.detector is None:
+                # 降级模式
                 logger.warning(f"[{task_id}] 感知服务降级模式，使用默认 QoS 向量")
                 anomaly_score = 0.5
                 risk_level = "medium"
-                # 编排服务期望 4 个元素: 带宽, 延迟, 优先级, 丢包率
                 qos_list = [10.0, 5.0, 1, 0.01]
             else:
-                # 正常模式：加载数据并推理
-                # 1. 加载数据
+                # CFM正常模式
                 rgb, pc = load_rgb_pc(rgb_path, pcd_path)
+                anomaly_score = self.detector.get_anomaly_score(rgb, pc)
+                logger.info(f"[{task_id}] CFM异常分数: {anomaly_score:.4f}")
+
+                risk_level, qos_vector = self.translator.translate_simple(float(anomaly_score))
+                qos_list = qos_vector.round(4).tolist()
+                logger.info(f"[{task_id}] 风险等级: {risk_level}, QoS向量: {qos_list}")
 
                 # 2. 异常检测
                 anomaly_score = self.detector.get_anomaly_score(rgb, pc)
                 logger.info(f"[{task_id}] 异常分数: {anomaly_score:.4f}")
 
                 # 3. QoS翻译
-                risk_level, qos_vector = self.translator.translate(float(anomaly_score))
+                risk_level, qos_vector = self.translator.translate_simple(float(anomaly_score))
                 qos_list = qos_vector.round(4).tolist()
                 logger.info(f"[{task_id}] 风险等级: {risk_level}, QoS向量: {qos_list}")
 
@@ -182,7 +271,16 @@ class PerceptionService:
             self.mq.publish(MessageQueue.QUEUE_ORCHESTRATION, orch_message)
             logger.info(f"[{task_id}] 已发送到编排队列")
 
-            return {"status": "success", "task_id": task_id}
+            # 返回完整结果，包括 anomaly_score 和其他信息
+            return {
+                "status": "success",
+                "task_id": task_id,
+                "data_id": data_id,
+                "anomaly_score": round(float(anomaly_score), 4),
+                "risk_level": risk_level,
+                "qos_vector": qos_list,
+                "resource_request": message.get("resource_request", {})
+            }
 
         except Exception as e:
             logger.error(f"[{task_id}] 处理失败: {str(e)}", exc_info=True)
@@ -193,9 +291,27 @@ class PerceptionService:
 
         while True:
             try:
-                message = self.mq.consume(MessageQueue.QUEUE_PERCEPTION, blocking=True, timeout=30)
+                # 使用轮询方式，更加可靠
+                message = None
+                try:
+                    # 非阻塞获取
+                    message = self.mq.consume(MessageQueue.QUEUE_PERCEPTION, blocking=False)
+                except Exception as e:
+                    # 如果出错，尝试用 lpop 直接获取
+                    data = self.mq.redis_client.lpop(MessageQueue.QUEUE_PERCEPTION)
+                    if data:
+                        message = self.mq._deserialize(data)
+
                 if message:
-                    self.process(message)
+                    logger.info(f"收到消息: task_id={message.get('task_id')}")
+                    result = self.process(message)
+                    logger.info(f"处理结果: {result.get('status')}, anomaly={result.get('anomaly_score', 'N/A')}")
+                    if result.get('status') == 'error':
+                        logger.error(f"处理失败: {result.get('error')}")
+                else:
+                    # 没有消息时短暂等待
+                    import time
+                    time.sleep(0.5)
             except KeyboardInterrupt:
                 logger.info("收到中断信号，停止服务")
                 break

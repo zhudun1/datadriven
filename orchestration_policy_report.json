@@ -1,21 +1,21 @@
 {
     "overall_stats": {
         "total_samples": 21,
-        "qos_satisfaction_rate": "85.71%",
-        "resource_availability_rate": "90.48%"
+        "qos_satisfaction_rate": "95.24%",
+        "resource_availability_rate": "95.24%"
     },
     "policy_details": [
         {
             "defect_type": "bent",
             "sample_name": "000.png",
-            "anomaly_score": 0.7083,
-            "risk_level": "CRITICAL",
+            "anomaly_score": 0.7036,
+            "risk_level": "NORMAL",
             "mapped_nodes": [
                 1,
                 3
             ],
             "mapped_links": [],
-            "reward": 589.24,
+            "reward": 706.96,
             "qos_ok": true,
             "resource_ok": true,
             "error": null
@@ -23,14 +23,14 @@
         {
             "defect_type": "bent",
             "sample_name": "001.png",
-            "anomaly_score": 0.7315,
-            "risk_level": "CRITICAL",
+            "anomaly_score": 0.7264,
+            "risk_level": "NORMAL",
             "mapped_nodes": [
-                0,
+                1,
                 3
             ],
             "mapped_links": [],
-            "reward": 595.53,
+            "reward": 672.51,
             "qos_ok": true,
             "resource_ok": true,
             "error": null
@@ -38,14 +38,14 @@
         {
             "defect_type": "bent",
             "sample_name": "002.png",
-            "anomaly_score": 0.7839,
-            "risk_level": "CRITICAL",
+            "anomaly_score": 0.7444,
+            "risk_level": "MEDIUM",
             "mapped_nodes": [
                 1,
                 3
             ],
             "mapped_links": [],
-            "reward": 592.96,
+            "reward": 643.19,
             "qos_ok": true,
             "resource_ok": true,
             "error": null
@@ -53,14 +53,14 @@
         {
             "defect_type": "bent",
             "sample_name": "003.png",
-            "anomaly_score": 0.8229,
-            "risk_level": "CRITICAL",
+            "anomaly_score": 0.779,
+            "risk_level": "HIGH",
             "mapped_nodes": [
                 1,
-                3
+                0
             ],
             "mapped_links": [],
-            "reward": 594.15,
+            "reward": 602.03,
             "qos_ok": true,
             "resource_ok": true,
             "error": null
@@ -68,14 +68,14 @@
         {
             "defect_type": "bent",
             "sample_name": "004.png",
-            "anomaly_score": 0.7449,
-            "risk_level": "CRITICAL",
+            "anomaly_score": 0.7453,
+            "risk_level": "MEDIUM",
             "mapped_nodes": [
                 1,
-                3
+                0
             ],
             "mapped_links": [],
-            "reward": 592.83,
+            "reward": 653.38,
             "qos_ok": true,
             "resource_ok": true,
             "error": null
@@ -83,29 +83,29 @@
         {
             "defect_type": "bent",
             "sample_name": "005.png",
-            "anomaly_score": 0.8321,
+            "anomaly_score": 0.8112,
             "risk_level": "CRITICAL",
             "mapped_nodes": [
-                0,
-                3
+                1,
+                0
             ],
             "mapped_links": [],
-            "reward": 583.6,
-            "qos_ok": true,
+            "reward": 263.93,
+            "qos_ok": false,
             "resource_ok": true,
             "error": null
         },
         {
             "defect_type": "bent",
             "sample_name": "006.png",
-            "anomaly_score": 0.7319,
-            "risk_level": "CRITICAL",
+            "anomaly_score": 0.6962,
+            "risk_level": "NORMAL",
             "mapped_nodes": [
                 1,
                 3
             ],
             "mapped_links": [],
-            "reward": 591.36,
+            "reward": 730.95,
             "qos_ok": true,
             "resource_ok": true,
             "error": null
@@ -113,44 +113,44 @@
         {
             "defect_type": "bent",
             "sample_name": "007.png",
-            "anomaly_score": 0.746,
-            "risk_level": "CRITICAL",
+            "anomaly_score": 0.752,
+            "risk_level": "MEDIUM",
             "mapped_nodes": [
-                0,
-                3
+                1,
+                0
             ],
             "mapped_links": [],
-            "reward": -200.0,
+            "reward": 671.67,
             "qos_ok": true,
-            "resource_ok": false,
+            "resource_ok": true,
             "error": null
         },
         {
             "defect_type": "bent",
             "sample_name": "008.png",
-            "anomaly_score": 0.7137,
-            "risk_level": "CRITICAL",
+            "anomaly_score": 0.7497,
+            "risk_level": "MEDIUM",
             "mapped_nodes": [
                 1,
-                3
+                0
             ],
             "mapped_links": [],
-            "reward": -200.0,
+            "reward": 673.42,
             "qos_ok": true,
-            "resource_ok": false,
+            "resource_ok": true,
             "error": null
         },
         {
             "defect_type": "bent",
             "sample_name": "009.png",
-            "anomaly_score": 0.847,
-            "risk_level": "CRITICAL",
+            "anomaly_score": 0.7619,
+            "risk_level": "MEDIUM",
             "mapped_nodes": [
-                0,
-                3
+                1,
+                0
             ],
             "mapped_links": [],
-            "reward": 586.26,
+            "reward": 670.11,
             "qos_ok": true,
             "resource_ok": true,
             "error": null
@@ -158,14 +158,14 @@
         {
             "defect_type": "bent",
             "sample_name": "010.png",
-            "anomaly_score": 0.7595,
-            "risk_level": "CRITICAL",
+            "anomaly_score": 0.751,
+            "risk_level": "MEDIUM",
             "mapped_nodes": [
                 1,
-                3
+                0
             ],
             "mapped_links": [],
-            "reward": 573.33,
+            "reward": 675.02,
             "qos_ok": true,
             "resource_ok": true,
             "error": null
@@ -173,14 +173,14 @@
         {
             "defect_type": "bent",
             "sample_name": "011.png",
-            "anomaly_score": 0.7889,
-            "risk_level": "CRITICAL",
+            "anomaly_score": 0.7555,
+            "risk_level": "MEDIUM",
             "mapped_nodes": [
-                0,
+                1,
                 3
             ],
             "mapped_links": [],
-            "reward": 591.98,
+            "reward": 661.18,
             "qos_ok": true,
             "resource_ok": true,
             "error": null
@@ -188,14 +188,14 @@
         {
             "defect_type": "bent",
             "sample_name": "012.png",
-            "anomaly_score": 0.7594,
-            "risk_level": "CRITICAL",
+            "anomaly_score": 0.7471,
+            "risk_level": "MEDIUM",
             "mapped_nodes": [
-                0,
+                1,
                 3
             ],
             "mapped_links": [],
-            "reward": 588.26,
+            "reward": 644.84,
             "qos_ok": true,
             "resource_ok": true,
             "error": null
@@ -203,14 +203,14 @@
         {
             "defect_type": "bent",
             "sample_name": "013.png",
-            "anomaly_score": 0.6227,
-            "risk_level": "CRITICAL",
+            "anomaly_score": 0.6121,
+            "risk_level": "NORMAL",
             "mapped_nodes": [
-                0,
+                1,
                 3
             ],
             "mapped_links": [],
-            "reward": 587.81,
+            "reward": 717.42,
             "qos_ok": true,
             "resource_ok": true,
             "error": null
@@ -218,14 +218,14 @@
         {
             "defect_type": "bent",
             "sample_name": "014.png",
-            "anomaly_score": 0.754,
-            "risk_level": "CRITICAL",
+            "anomaly_score": 0.7494,
+            "risk_level": "MEDIUM",
             "mapped_nodes": [
                 1,
-                3
+                0
             ],
             "mapped_links": [],
-            "reward": 590.53,
+            "reward": 658.74,
             "qos_ok": true,
             "resource_ok": true,
             "error": null
@@ -233,14 +233,14 @@
         {
             "defect_type": "bent",
             "sample_name": "015.png",
-            "anomaly_score": 0.736,
-            "risk_level": "CRITICAL",
+            "anomaly_score": 0.726,
+            "risk_level": "NORMAL",
             "mapped_nodes": [
-                0,
+                1,
                 3
             ],
             "mapped_links": [],
-            "reward": 592.29,
+            "reward": 676.83,
             "qos_ok": true,
             "resource_ok": true,
             "error": null
@@ -248,74 +248,74 @@
         {
             "defect_type": "bent",
             "sample_name": "016.png",
-            "anomaly_score": 0.6796,
-            "risk_level": "CRITICAL",
-            "mapped_nodes": [
-                0,
-                3
-            ],
-            "mapped_links": [],
-            "reward": 259.96,
-            "qos_ok": false,
-            "resource_ok": true,
-            "error": null
-        },
-        {
-            "defect_type": "bent",
-            "sample_name": "017.png",
-            "anomaly_score": 0.7904,
-            "risk_level": "CRITICAL",
+            "anomaly_score": 0.6129,
+            "risk_level": "NORMAL",
             "mapped_nodes": [
                 1,
                 3
             ],
             "mapped_links": [],
-            "reward": 298.27,
-            "qos_ok": false,
-            "resource_ok": true,
-            "error": null
-        },
-        {
-            "defect_type": "bent",
-            "sample_name": "018.png",
-            "anomaly_score": 0.7304,
-            "risk_level": "CRITICAL",
-            "mapped_nodes": [
-                0,
-                3
-            ],
-            "mapped_links": [],
-            "reward": 246.77,
-            "qos_ok": false,
-            "resource_ok": true,
-            "error": null
-        },
-        {
-            "defect_type": "bent",
-            "sample_name": "019.png",
-            "anomaly_score": 0.7451,
-            "risk_level": "CRITICAL",
-            "mapped_nodes": [
-                1,
-                3
-            ],
-            "mapped_links": [],
-            "reward": 593.17,
+            "reward": 722.78,
             "qos_ok": true,
             "resource_ok": true,
             "error": null
         },
         {
             "defect_type": "bent",
-            "sample_name": "020.png",
-            "anomaly_score": 0.762,
+            "sample_name": "017.png",
+            "anomaly_score": 0.7901,
             "risk_level": "CRITICAL",
             "mapped_nodes": [
-                0,
+                1,
                 3
             ],
             "mapped_links": [],
-            "reward": 587.26,
+            "reward": 589.81,
+            "qos_ok": true,
+            "resource_ok": true,
+            "error": null
+        },
+        {
+            "defect_type": "bent",
+            "sample_name": "018.png",
+            "anomaly_score": 0.7459,
+            "risk_level": "MEDIUM",
+            "mapped_nodes": [
+                1,
+                3
+            ],
+            "mapped_links": [],
+            "reward": 618.32,
+            "qos_ok": true,
+            "resource_ok": true,
+            "error": null
+        },
+        {
+            "defect_type": "bent",
+            "sample_name": "019.png",
+            "anomaly_score": 0.7995,
+            "risk_level": "CRITICAL",
+            "mapped_nodes": [
+                1,
+                0
+            ],
+            "mapped_links": [],
+            "reward": -200.0,
+            "qos_ok": true,
+            "resource_ok": false,
+            "error": null
+        },
+        {
+            "defect_type": "bent",
+            "sample_name": "020.png",
+            "anomaly_score": 0.7665,
+            "risk_level": "HIGH",
+            "mapped_nodes": [
+                1,
+                3
+            ],
+            "mapped_links": [],
+            "reward": 623.37,
             "qos_ok": true,
             "resource_ok": true,
             "error": null

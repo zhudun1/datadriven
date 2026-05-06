@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QoS 编排 - 步骤3：文件输入</title>
+    <link rel="stylesheet" href="../assets/styles.css" />
+    <style>
+      .step-container {
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 20px;
+      }
+      .step-header {
+        text-align: center;
+        margin-bottom: 40px;
+      }
+      .step-header h1 {
+        font-size: 28px;
+        color: #1a1a2e;
+        margin-bottom: 8px;
+      }
+      .step-header .step-indicator {
+        color: #666;
+        font-size: 14px;
+      }
+      .step-header .mode-info {
+        display: inline-block;
+        background: #dbeafe;
+        color: #1d4ed8;
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        margin-top: 8px;
+      }
+      .form-panel {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 32px;
+      }
+      .field {
+        margin-bottom: 24px;
+      }
+      .field label {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 14px;
+        color: #374151;
+        margin-bottom: 8px;
+        font-weight: 500;
+      }
+      .field label .required {
+        color: #dc2626;
+      }
+      .file-input-row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      .field input[type="text"] {
+        flex: 1;
+        padding: 12px 16px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: border-color 0.3s;
+      }
+      .field input[type="text"]:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      }
+      .field input[type="text"]::placeholder {
+        color: #9ca3af;
+      }
+      .field .hint {
+        display: block;
+        font-size: 12px;
+        color: #6b7280;
+        margin-top: 4px;
+      }
+      .browse-btn {
+        background: #fff;
+        color: #3b82f6;
+        border: 1px solid #3b82f6;
+        padding: 10px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.3s;
+      }
+      .browse-btn:hover {
+        background: #eff6ff;
+      }
+      .drop-zone {
+        border: 2px dashed #d1d5db;
+        border-radius: 12px;
+        padding: 32px;
+        text-align: center;
+        margin-bottom: 24px;
+        transition: all 0.3s;
+        cursor: pointer;
+      }
+      .drop-zone:hover, .drop-zone.dragover {
+        border-color: #3b82f6;
+        background: #eff6ff;
+      }
+      .drop-zone .icon {
+        font-size: 36px;
+        margin-bottom: 12px;
+      }
+      .drop-zone .text {
+        color: #6b7280;
+        font-size: 14px;
+      }
+      .drop-zone .text strong {
+        color: #3b82f6;
+      }
+      /* 隐藏的文件输入框 */
+      .hidden-input {
+        display: none;
+      }
+      .field-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+      }
+      .actions {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        margin-top: 32px;
+      }
+      .primary-btn {
+        background: #3b82f6;
+        color: #fff;
+        border: none;
+        padding: 12px 32px;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+      .primary-btn:hover {
+        background: #2563eb;
+      }
+      .primary-btn:disabled {
+        background: #94a3b8;
+        cursor: not-allowed;
+      }
+      .secondary-btn {
+        background: #fff;
+        color: #6b7280;
+        border: 2px solid #d1d5db;
+        padding: 12px 32px;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+      }
+      .secondary-btn:hover {
+        border-color: #9ca3af;
+      }
+      .message {
+        text-align: center;
+        padding: 12px;
+        border-radius: 8px;
+        margin-top: 16px;
+      }
+      .message.error {
+        background: #fee2e2;
+        color: #dc2626;
+      }
+      .message.success {
+        background: #dcfce7;
+        color: #166534;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="step-container">
+      <div class="step-header">
+        <h1>QoS 智能编排系统</h1>
+        <p class="step-indicator">步骤 3 / 5 · 输入文件路径</p>
+        <p id="model-info" class="mode-info"></p>
+        <button class="ghost-btn" onclick="logout()" style="position:absolute;top:20px;right:20px;">退出登录</button>
+      </div>
+
+      <div class="form-panel">
+        <!-- 拖放区域 -->
+        <div id="drop-zone" class="drop-zone">
+          <div class="icon">&#128193;</div>
+          <div class="text">
+            拖拽文件到此处，或 <strong>点击选择文件</strong>
+          </div>
+          <input type="file" id="file-input" class="hidden-input" />
+        </div>
+
+        <!-- CFM 输入 -->
+        <div id="cfm-inputs">
+          <div class="field">
+            <label>RGB 图像路径 <span class="required">*</span></label>
+            <div class="file-input-row">
+              <input id="rgb-path" type="text" placeholder="例如: D:/data-driven_2/datasets/mvtec3d/cable_gland/train/good/rgb/000.png" />
+              <button type="button" class="browse-btn" onclick="browseFile('rgb')">浏览</button>
+            </div>
+            <span class="hint">支持 .png, .jpg, .jpeg 格式</span>
+          </div>
+          <div class="field">
+            <label>点云文件路径 (.tiff) <span class="required">*</span></label>
+            <div class="file-input-row">
+              <input id="pcd-path" type="text" placeholder="例如: D:/data-driven_2/datasets/mvtec3d/cable_gland/train/good/xyz/000.tiff" />
+              <button type="button" class="browse-btn" onclick="browseFile('pcd')">浏览</button>
+            </div>
+            <span class="hint">支持 .tiff, .tif 格式</span>
+          </div>
+        </div>
+
+        <!-- Jigsaw 输入 -->
+        <div id="jigsaw-inputs" style="display: none;">
+          <div class="field">
+            <label>视频文件路径 (.avi/.mp4) <span class="required">*</span></label>
+            <div class="file-input-row">
+              <input id="video-path" type="text" placeholder="例如: D:/data-driven_2/Jigsaw-VAD-main/Avenue Dataset/testing_videos/01.avi" />
+              <button type="button" class="browse-btn" onclick="browseFile('video')">浏览</button>
+            </div>
+            <span class="hint">支持 .avi, .mp4 格式</span>
+          </div>
+          <div class="field">
+            <label>辅助图像路径 (可选)</label>
+            <div class="file-input-row">
+              <input id="aux-image-path" type="text" placeholder="例如: D:/data-driven_2/datasets/mvtec3d/cable_gland/train/good/rgb/000.png" />
+              <button type="button" class="browse-btn" onclick="browseFile('aux')">浏览</button>
+            </div>
+            <span class="hint">可选，用于辅助视频异常检测</span>
+          </div>
+        </div>
+
+        <div id="message" class="message"></div>
+
+        <div class="actions">
+          <button class="secondary-btn" onclick="goPrev()">返回上一步</button>
+          <button id="validate-btn" class="primary-btn" onclick="validateAndNext()">校验并继续</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="js/step-workflow.js"></script>
+    <script>
+      // 检查登录
+      if (!requireAuth()) {
+        throw new Error("未登录");
+      }
+
+      const state = StepState.load();
+      const modelType = state.model_type;
+
+      // 显示对应的输入框
+      document.getElementById('model-info').textContent =
+        modelType + ' 模型';
+      document.getElementById('cfm-inputs').style.display = modelType === 'CFM' ? 'block' : 'none';
+      document.getElementById('jigsaw-inputs').style.display = modelType === 'Jigsaw' ? 'block' : 'none';
+
+      StepState.setStep(3);
+
+      function validateAndNext() {
+        const msgEl = document.getElementById('message');
+        let filePaths = {};
+        let isValid = true;
+
+        if (modelType === 'CFM') {
+          const rgbPath = document.getElementById('rgb-path').value.trim().replace(/"/g, "");
+          const pcdPath = document.getElementById('pcd-path').value.trim().replace(/"/g, "");
+
+          if (!rgbPath) {
+            setMessage('message', '请输入RGB图像路径', 'error');
+            isValid = false;
+          } else if (!pcdPath) {
+            setMessage('message', '请输入点云文件路径', 'error');
+            isValid = false;
+          } else {
+            filePaths = { rgb_path: rgbPath, pcd_path: pcdPath };
+          }
+        } else {
+          const videoPath = document.getElementById('video-path').value.trim().replace(/"/g, "");
+          const auxImagePath = document.getElementById('aux-image-path').value.trim().replace(/"/g, "");
+
+          if (!videoPath && !auxImagePath) {
+            setMessage('message', '请至少输入视频路径或辅助图像路径', 'error');
+            isValid = false;
+          } else {
+            filePaths = { video_path: videoPath, aux_image_path: auxImagePath };
+          }
+        }
+
+        if (!isValid) return;
+
+        // 保存文件路径
+        StepState.setFilePaths(filePaths);
+        setMessage('message', '文件路径已保存', 'success');
+
+        // 跳转到下一步
+        setTimeout(() => {
+          window.location.href = 'step4-model-confirm.html';
+        }, 500);
+      }
+
+      // ========== 拖放和浏览功能 ==========
+      const dropZone = document.getElementById('drop-zone');
+      const fileInput = document.getElementById('file-input');
+
+      // 点击拖放区域打开文件选择
+      dropZone.addEventListener('click', () => fileInput.click());
+
+      // 文件选择处理
+      fileInput.addEventListener('change', (e) => {
+        let targetType = 'rgb';
+        if (modelType === 'Jigsaw') {
+          targetType = 'video';
+        }
+        handleFiles(e.target.files, targetType);
+      });
+
+      // 拖放事件
+      dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+      });
+
+      dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+      });
+
+      dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+
+        // 根据当前模型类型确定目标类型
+        let targetType = 'rgb';
+        if (modelType === 'Jigsaw') {
+          targetType = 'video';
+        }
+
+        handleFiles(e.dataTransfer.files, targetType);
+      });
+
+      // 根据当前模型类型设置允许的文件类型
+      function getAcceptTypes() {
+        if (modelType === 'CFM') {
+          return '.png,.jpg,.jpeg,.tiff,.tif';
+        } else {
+          return '.avi,.mp4,.png,.jpg,.jpeg';
+        }
+      }
+
+      // 设置文件输入的 accept 属性
+      fileInput.accept = getAcceptTypes();
+
+      // 处理选择的文件
+      function handleFiles(files, targetType) {
+        if (!files || files.length === 0) return;
+
+        const file = files[0];
+        // 尝试获取文件完整路径
+        let filePath = file.path || file.name || file.webkitRelativePath;
+
+        // 根据目标类型设置对应的输入框
+        if (targetType === 'rgb' || file.type.startsWith('image/')) {
+          document.getElementById('rgb-path').value = filePath;
+        } else if (targetType === 'pcd' || file.name.endsWith('.tiff') || file.name.endsWith('.tif')) {
+          document.getElementById('pcd-path').value = filePath;
+        } else if (targetType === 'video' || file.name.endsWith('.avi') || file.name.endsWith('.mp4')) {
+          document.getElementById('video-path').value = filePath;
+        } else if (targetType === 'aux') {
+          document.getElementById('aux-image-path').value = filePath;
+        }
+
+        setMessage('message', '已选择文件: ' + filePath, 'success');
+      }
+
+      // 浏览文件按钮 - 打开文件对话框
+      function browseFile(type) {
+        const input = document.createElement('input');
+        input.type = 'file';
+
+        // 根据类型设置允许的文件
+        if (type === 'rgb' || type === 'aux') {
+          input.accept = '.png,.jpg,.jpeg';
+        } else if (type === 'pcd') {
+          input.accept = '.tiff,.tif';
+        } else if (type === 'video') {
+          input.accept = '.avi,.mp4';
+        }
+
+        input.addEventListener('change', (e) => {
+          const file = e.target.files[0];
+          if (file) {
+            // 尝试获取文件路径
+            let filePath = file.path || file.name || file.webkitRelativePath;
+            // 设置到对应的输入框
+            if (type === 'rgb') {
+              document.getElementById('rgb-path').value = filePath;
+            } else if (type === 'pcd') {
+              document.getElementById('pcd-path').value = filePath;
+            } else if (type === 'video') {
+              document.getElementById('video-path').value = filePath;
+            } else if (type === 'aux') {
+              document.getElementById('aux-image-path').value = filePath;
+            }
+            setMessage('message', '已选择: ' + filePath, 'success');
+          }
+        });
+
+        input.click();
+      }
+
+      function goPrev() {
+        const dataType = state.data_type;
+        if (dataType === 'pc_image' || dataType === 'video_image') {
+          window.location.href = 'step2-data-type.html';
+        } else {
+          window.location.href = 'step1-entry.html';
+        }
+      }
+
+      function logout() {
+        localStorage.removeItem("qos_token");
+        localStorage.removeItem("qos_user");
+        window.location.href = "../index.html";
+      }
+    </script>
+  </body>
+</html>

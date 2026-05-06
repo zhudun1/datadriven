@@ -11,6 +11,7 @@ datasets/
 *.zip
 *.pth
 *.pt
+*.pth.tar
 
 # Database
 *.db
@@ -34,3 +35,18 @@ Thumbs.db
 
 # Environment
 .env
+
+# Cross-modal feature mapping (large submodule)
+crossmodal-feature-mapping/
+
+# Jigsaw VAD (large submodule)
+Jigsaw-VAD-main/
+
+# Pointnet2 build (generated)
+Pointnet2_PyTorch-master/build/
+Pointnet2_PyPyTorch-master/pointnet2_ops_lib/build/
+
+# PPO model files
+ppo_graph_model.zip
+ppo_graph_model/
+ppo_logs/

@@ -108,7 +108,7 @@ def main():
     
     # 1. 全局初始化感知层
     detector = CFMDetector(CLASS_NAME, CHECKPOINT_PATH, DEVICE)
-    translator = QoSTranslator()
+    translator = QoSTranslator(model_name="cfm")  # 使用cfm模型的动态阈值
 
     # 2. 全局初始化编排层
     env = GraphVNEEnv()

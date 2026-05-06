@@ -21,14 +21,38 @@
             <h2>多模态输入路径</h2>
             <form id="path-form" novalidate>
               <label class="field">
-                <span>RGB 图像路径</span>
-                <input id="business-image-path" type="text" placeholder="例如: /root/data-driven_2/data/sample/001.png" required />
+                <span>选择异常检测模型</span>
+                <select id="model-type" required>
+                  <option value="CFM">CFM (图像 + 点云)</option>
+                  <option value="Jigsaw">Jigsaw (视频 + 图像)</option>
+                </select>
               </label>
 
-              <label class="field">
-                <span>点云文件路径（.tif/.tiff）</span>
-                <input id="point-cloud-path" type="text" placeholder="例如: /root/data-driven_2/data/sample/001.tiff" required />
-              </label>
+              <!-- CFM模式输入 -->
+              <div id="cfm-inputs">
+                <label class="field">
+                  <span>RGB 图像路径</span>
+                  <input id="business-image-path" type="text" placeholder="例如: D:/data-driven_2/datasets/mvtec3d/cable_gland/train/good/rgb/000.png" required />
+                </label>
+
+                <label class="field">
+                  <span>点云文件路径（.tif/.tiff）</span>
+                  <input id="point-cloud-path" type="text" placeholder="例如: D:/data-driven_2/datasets/mvtec3d/cable_gland/train/good/tiff/000.tiff" required />
+                </label>
+              </div>
+
+              <!-- Jigsaw模式输入 -->
+              <div id="jigsaw-inputs" style="display:none;">
+                <label class="field">
+                  <span>视频文件路径 (.avi/.mp4)</span>
+                  <input id="video-path" type="text" placeholder="例如: D:/data-driven_2/Jigsaw-VAD-main/Avenue Dataset/testing_videos/01.avi" />
+                </label>
+
+                <label class="field">
+                  <span>辅助图像路径 (可选)</span>
+                  <input id="aux-image-path" type="text" placeholder="例如: D:/data-driven_2/datasets/mvtec3d/cable_gland/train/good/rgb/000.png" />
+                </label>
+              </div>
 
               <button type="submit" class="secondary-btn">保存路径</button>
             </form>
@@ -37,6 +61,25 @@
           <section class="card">
             <h2>填写虚拟计算资源需求</h2>
             <form id="resource-form" novalidate>
+              <div class="grid-two">
+                <label class="field">
+                  <span>vCPU（核）</span>
+                  <input id="vcpu" type="number" min="1" step="1" value="2" required />
+                </label>
+                <label class="field">
+                  <span>内存（GB）</span>
+                  <input id="memory" type="number" min="1" step="1" value="2" required />
+                </label>
+                <label class="field">
+                  <span>存储（GB）</span>
+                  <input id="storage" type="number" min="1" step="1" value="2" required />
+                </label>
+                <label class="field">
+                  <span>带宽（Mbps）</span>
+                  <input id="bandwidth" type="number" min="1" step="1" value="2" required />
+                </label>
+              </div>
+
               <label class="field">
                 <span>数据库资源模板</span>
                 <div class="grid-two">

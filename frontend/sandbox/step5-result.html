@@ -1,0 +1,825 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QoS 编排 - 步骤5：结果与编排</title>
+    <link rel="stylesheet" href="../assets/styles.css" />
+    <style>
+      .step-container { max-width: 1100px; margin: 40px auto; padding: 20px; }
+      .step-header { text-align: center; margin-bottom: 32px; }
+      .step-header h1 { font-size: 28px; color: #1a1a2e; margin-bottom: 8px; }
+      .step-header .step-indicator { color: #666; font-size: 14px; }
+
+      /* 卡片通用样式 */
+      .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+
+      /* 异常分数展示 */
+      .score-panel { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 32px; margin-bottom: 24px; text-align: center; }
+      .score-label { font-size: 14px; color: #6b7280; margin-bottom: 8px; }
+      .score-value { font-size: 72px; font-weight: 700; color: #1a1a2e; }
+      .score-level { display: inline-block; padding: 8px 24px; border-radius: 8px; font-size: 18px; font-weight: 600; margin-top: 16px; }
+      .score-level.CRITICAL { background: #fee2e2; color: #dc2626; }
+      .score-level.MEDIUM { background: #fef3c7; color: #b45309; }
+      .score-level.LOW { background: #fef9c3; color: #a16207; }
+      .score-level.NORMAL { background: #dcfce7; color: #166534; }
+
+      /* 阈值表 */
+      .threshold-table h3 { margin: 0 0 16px; font-size: 16px; color: #374151; }
+      .threshold-items { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+      .threshold-item { padding: 12px; border-radius: 8px; text-align: center; font-size: 13px; }
+      .threshold-item.CRITICAL { background: #fee2e2; }
+      .threshold-item.MEDIUM { background: #fef3c7; }
+      .threshold-item.LOW { background: #fef9c3; }
+      .threshold-item.NORMAL { background: #dcfce7; }
+      .threshold-item .range { font-weight: 600; }
+      .threshold-item .level { font-size: 12px; margin-top: 4px; }
+
+      /* ==================== 详细QoS映射说明面板 ==================== */
+      .qos-mapping-panel { background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border: 2px solid #cbd5e1; }
+      .qos-mapping-panel h3 { margin: 0 0 20px; font-size: 18px; color: #1e293b; display: flex; align-items: center; gap: 8px; font-weight: 700; }
+
+      /* 输入因素展示卡片 */
+      .input-factors { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
+      .factor-card { background: #fff; border: 2px solid #e2e8f0; border-radius: 12px; padding: 20px; text-align: center; }
+      .factor-card.active { border-color: #3b82f6; background: #eff6ff; }
+      .factor-card .factor-icon { font-size: 32px; margin-bottom: 8px; }
+      .factor-card .factor-title { font-size: 13px; color: #64748b; margin-bottom: 6px; }
+      .factor-card .factor-value { font-size: 20px; font-weight: 700; color: #1e293b; }
+      .factor-card .factor-desc { font-size: 12px; color: #94a3b8; margin-top: 6px; }
+
+      /* 计算流程箭头 */
+      .calc-flow { display: flex; align-items: center; justify-content: center; margin-bottom: 28px; flex-wrap: wrap; gap: 8px; }
+      .calc-step { background: #fff; padding: 12px 20px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 14px; }
+      .calc-step .step-label { font-size: 11px; color: #64748b; }
+      .calc-step .step-value { font-weight: 600; color: #1e293b; }
+      .calc-arrow { color: #3b82f6; font-size: 24px; }
+
+      /* 详细计算公式区 */
+      .calculation-box { background: #fff; border: 2px solid #10b981; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+      .calculation-box h4 { margin: 0 0 16px; font-size: 15px; color: #065f46; font-weight: 700; }
+      .calc-formula { background: #f0fdf4; border-radius: 8px; padding: 16px; margin-bottom: 16px; font-family: monospace; font-size: 13px; }
+      .calc-formula .formula-line { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+      .calc-formula .formula-label { color: #64748b; min-width: 180px; }
+      .calc-formula .formula-equal { color: #10b981; font-weight: 700; }
+      .calc-formula .formula-result { color: #1e293b; font-weight: 600; }
+      .calc-formula .formula-note { font-size: 12px; color: #94a3b8; margin-left: 12px; }
+      .calc-result-summary { display: flex; justify-content: center; gap: 24px; flex-wrap: wrap; }
+      .calc-result-item { text-align: center; padding: 16px; background: #ecfdf5; border-radius: 10px; min-width: 140px; }
+      .calc-result-item .result-name { font-size: 12px; color: #64748b; }
+      .calc-result-item .result-value { font-size: 24px; font-weight: 700; color: #1e293b; }
+      .calc-result-item .result-unit { font-size: 12px; color: #10b981; }
+
+      /* 完整映射规则表 */
+      .mapping-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 20px; }
+      .mapping-table th, .mapping-table td { padding: 12px 10px; text-align: left; border: 1px solid #e2e8f0; }
+      .mapping-table th { background: #f1f5f9; font-weight: 600; color: #475569; font-size: 13px; }
+      .mapping-table tr:hover { background: #f8fafc; }
+      .mapping-table .level-tag { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; min-width: 60px; text-align: center; }
+      .level-critical, .level-l3 { background: #fef2f2; color: #dc2626; }
+      .level-high, .level-l2 { background: #fffbeb; color: #d97706; }
+      .level-medium, .level-l1 { background: #eff6ff; color: #2563eb; }
+      .level-normal, .level-l0 { background: #ecfdf5; color: #059669; }
+      .mapping-table tr.active { background: #fef3c7; }
+      .mapping-table tr.active td { border-color: #f59e0b; }
+      .mapping-table .check-icon { display: none; color: #10b981; font-weight: bold; }
+      .mapping-table tr.active .check-icon { display: inline; }
+
+      /* 当前计算的QoS结果 */
+      .qos-result-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-top: 20px; }
+      .qos-result-card { background: #fff; border: 2px solid #e2e8f0; border-radius: 10px; padding: 16px; text-align: center; }
+      .qos-result-card.active { border-color: #3b82f6; background: #eff6ff; }
+      .qos-result-card .qos-dim { font-size: 11px; color: #64748b; }
+      .qos-result-card .qos-val { font-size: 22px; font-weight: 700; color: #1e293b; }
+      .qos-result-card .qos-real { font-size: 12px; color: #3b82f6; margin-top: 4px; }
+
+      /* 数据特征信息 */
+      .data-info-box { background: #fffbeb; border: 2px solid #f59e0b; border-radius: 12px; padding: 16px; margin-top: 20px; }
+      .data-info-box h4 { margin: 0 0 12px; font-size: 14px; color: #92400e; }
+      .data-info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+      .data-info-item { font-size: 13px; color: #78350f; }
+      .data-info-item strong { color: #1e293b; }
+
+      /* QoS向量调整 */
+      .qos-panel h3 { margin: 0 0 20px; font-size: 16px; color: #374151; }
+      .qos-items { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+      .qos-item label { display: block; font-size: 14px; color: #374151; margin-bottom: 8px; }
+      .qos-item .slider-row { display: flex; align-items: center; gap: 12px; }
+      .qos-item input[type="range"] { flex: 1; height: 8px; -webkit-appearance: none; background: #e5e7eb; border-radius: 4px; }
+      .qos-item input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; background: #3b82f6; border-radius: 50%; cursor: pointer; }
+      .qos-item .value { min-width: 60px; text-align: right; font-size: 14px; color: #374151; }
+      .qos-auto-badge { display: inline-block; font-size: 11px; padding: 2px 6px; border-radius: 4px; margin-left: 8px; }
+      .qos-auto-badge.auto { background: #dbeafe; color: #2563eb; }
+      .qos-auto-badge.manual { background: #fef3c7; color: #b45309; }
+
+      /* 结果展示 */
+      .result-panel { background: #f9fafb; border-radius: 8px; padding: 16px; margin-bottom: 24px; display: none; }
+      .result-panel.active { display: block; }
+      .result-panel h3 { margin: 0 0 12px; font-size: 14px; color: #374151; }
+      .result-content { font-family: monospace; font-size: 13px; white-space: pre-wrap; word-break: break-all; }
+
+      .actions { display: flex; justify-content: center; gap: 16px; margin-top: 32px; }
+      .primary-btn { background: #3b82f6; color: #fff; border: none; padding: 14px 40px; border-radius: 8px; font-size: 16px; cursor: pointer; }
+      .primary-btn:hover { background: #2563eb; }
+      .primary-btn:disabled { background: #94a3b8; cursor: not-allowed; }
+      .secondary-btn { background: #fff; color: #6b7280; border: 2px solid #d1d5db; padding: 14px 40px; border-radius: 8px; font-size: 16px; cursor: pointer; }
+      .secondary-btn:hover { border-color: #9ca3af; }
+      .message { text-align: center; padding: 12px; border-radius: 8px; margin-top: 16px; }
+      .message.error { background: #fee2e2; color: #dc2626; }
+      .message.success { background: #dcfce7; color: #166534; }
+      .message.warning { background: #fef3c7; color: #92400e; }
+      .dialog-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+      .dialog-content { background: #fff; padding: 24px; border-radius: 12px; max-width: 420px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+      .dialog-content h3 { margin: 0 0 12px; color: #92400e; }
+      .dialog-content pre { background: #f3f4f6; padding: 8px; border-radius: 4px; font-size: 12px; overflow-x: auto; }
+      .dialog-buttons { display: flex; gap: 8px; margin-top: 16px; justify-content: center; }
+      .dialog-buttons .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+      .btn-primary { background: #3b82f6; color: #fff; }
+      .btn-warning { background: #f59e0b; color: #fff; }
+      .btn-secondary { background: #e5e7eb; color: #374151; }
+
+      /* 浮动说明按钮 */
+      .guide-float-btn { position: fixed; bottom: 30px; right: 30px; width: 50px; height: 50px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(59,130,246,0.4); cursor: pointer; z-index: 100; transition: transform 0.2s; }
+      .guide-float-btn:hover { transform: scale(1.1); }
+      .guide-float-btn span { font-size: 24px; }
+    </style>
+  </head>
+  <body>
+    <div class="step-container">
+      <div class="step-header">
+        <h1>QoS 智能编排系统</h1>
+        <p class="step-indicator">步骤 5 / 5 - 结果与编排</p>
+        <button class="ghost-btn" onclick="logout()" style="position:absolute;top:20px;right:20px;">退出登录</button>
+      </div>
+
+      <!-- 异常分数 -->
+      <div class="score-panel">
+        <div class="score-label">异常检测分数</div>
+        <div class="score-value" id="anomaly-score">-</div>
+        <div class="score-level" id="risk-level">-</div>
+      </div>
+
+      <!-- 阈值表 -->
+      <div class="card threshold-table">
+        <h3>异常等级阈值表 - <span id="threshold-model">CFM</span></h3>
+        <div class="threshold-items" id="threshold-items"></div>
+      </div>
+
+      <!-- ==================== 完整QoS映射过程 ==================== -->
+      <div class="card qos-mapping-panel">
+        <h3>🔄 完整QoS向量映射计算过程</h3>
+
+        <!-- 输入因素 -->
+        <div class="input-factors">
+          <div class="factor-card" id="factor-score">
+            <div class="factor-icon">📊</div>
+            <div class="factor-title">异常分数</div>
+            <div class="factor-value" id="input-score">-</div>
+            <div class="factor-desc">模型检测结果</div>
+          </div>
+          <div class="factor-card" id="factor-level">
+            <div class="factor-icon">⚠️</div>
+            <div class="factor-title">异常等级</div>
+            <div class="factor-value" id="input-level">-</div>
+            <div class="factor-desc">根据阈值判定</div>
+          </div>
+          <div class="factor-card" id="factor-data">
+            <div class="factor-icon">📦</div>
+            <div class="factor-title">数据特征</div>
+            <div class="factor-value" id="input-data">-</div>
+            <div class="factor-desc" id="input-data-desc">文件类型和大小</div>
+          </div>
+        </div>
+
+        <!-- 计算流程箭头 -->
+        <div class="calc-flow">
+          <div class="calc-step">
+            <div class="step-label">异常分数</div>
+            <div class="step-value" id="calc-score">0.85</div>
+          </div>
+          <div class="calc-arrow">→</div>
+          <div class="calc-step">
+            <div class="step-label">异常等级</div>
+            <div class="step-value" id="calc-level">L2</div>
+          </div>
+          <div class="calc-arrow">→</div>
+          <div class="calc-step">
+            <div class="step-label">+业务场景</div>
+            <div class="step-value" id="calc-scenario">quality</div>
+          </div>
+          <div class="calc-arrow">→</div>
+          <div class="calc-step">
+            <div class="step-label">+数据量</div>
+            <div class="step-value" id="calc-data-size">50MB</div>
+          </div>
+          <div class="calc-arrow">=</div>
+          <div class="calc-step">
+            <div class="step-label">QoS向量</div>
+            <div class="step-value" style="color:#10b981">6维</div>
+          </div>
+        </div>
+
+        <!-- 详细计算公式 -->
+        <div class="calculation-box">
+          <h4>📐 计算公式详解</h4>
+          <div class="calc-formula">
+            <div class="formula-line">
+              <span class="formula-label">步骤1: 查表得到时延预算</span>
+              <span class="formula-equal">=</span>
+              <span class="formula-result" id="formula-latency">200ms</span>
+              <span class="formula-note">(根据L2+quality)</span>
+            </div>
+            <div class="formula-line">
+              <span class="formula-label">步骤2: 计算吞吐量</span>
+              <span class="formula-equal">=</span>
+              <span class="formula-result" id="formula-throughput">240 Mbps</span>
+              <span class="formula-note">(50MB ÷ 0.2s × 1.2)</span>
+            </div>
+            <div class="formula-line">
+              <span class="formula-label">步骤3: 计算抖动上限</span>
+              <span class="formula-equal">=</span>
+              <span class="formula-result" id="formula-jitter">20ms</span>
+              <span class="formula-note">(200ms × 10%)</span>
+            </div>
+            <div class="formula-line">
+              <span class="formula-label">步骤4: 确定可靠性</span>
+              <span class="formula-equal">=</span>
+              <span class="formula-result" id="formula-reliability">99.99%</span>
+              <span class="formula-note">(4个9)</span>
+            </div>
+            <div class="formula-line">
+              <span class="formula-label">步骤5: 确定优先级</span>
+              <span class="formula-equal">=</span>
+              <span class="formula-result" id="formula-priority">6</span>
+              <span class="formula-note">(L2对应优先级)</span>
+            </div>
+          </div>
+          <div class="calc-result-summary">
+            <div class="calc-result-item">
+              <div class="result-name">时延预算</div>
+              <div class="result-value" id="res-latency">200ms</div>
+              <div class="result-unit">端到端上限</div>
+            </div>
+            <div class="calc-result-item">
+              <div class="result-name">吞吐量</div>
+              <div class="result-value" id="res-throughput">240</div>
+              <div class="result-unit">Mbps</div>
+            </div>
+            <div class="calc-result-item">
+              <div class="result-name">抖动上限</div>
+              <div class="result-value" id="res-jitter">20</div>
+              <div class="result-unit">ms</div>
+            </div>
+            <div class="calc-result-item">
+              <div class="result-name">丢包率</div>
+              <div class="result-value" id="res-loss">0.1</div>
+              <div class="result-unit">%</div>
+            </div>
+            <div class="calc-result-item">
+              <div class="result-name">可靠性</div>
+              <div class="result-value" id="res-reliability">99.99%</div>
+              <div class="result-unit">Class 4</div>
+            </div>
+            <div class="calc-result-item">
+              <div class="result-name">优先级</div>
+              <div class="result-value" id="res-priority">6</div>
+              <div class="result-unit">/7</div>
+            </div>
+          </div>
+        </div>
+
+        
+        <!-- 数据特征信息 -->
+        <div class="data-info-box">
+          <h4>📦 数据特征信息</h4>
+          <div class="data-info-grid">
+            <div class="data-info-item">数据类型: <strong id="data-type">pointcloud</strong></div>
+            <div class="data-info-item">数据量: <strong id="data-size">50 MB</strong></div>
+            <div class="data-info-item">压缩率: <strong>30%</strong></div>
+            <div class="data-info-item">计算带宽: <strong id="calc-bandwidth">240 Mbps</strong> (数据量÷时延×1.2)</div>
+          </div>
+        </div>
+
+        <!-- 最终QoS向量 -->
+        <h4 style="margin: 24px 0 12px; font-size: 15px; color: #374151;">⚡ 最终6维QoS向量（归一化值 0-1）</h4>
+        <div class="qos-result-grid">
+          <div class="qos-result-card">
+            <div class="qos-dim">1. 时延</div>
+            <div class="qos-val" id="qos-dim-0">0.02</div>
+            <div class="qos-real">200ms/10s</div>
+          </div>
+          <div class="qos-result-card">
+            <div class="qos-dim">2. 抖动</div>
+            <div class="qos-val" id="qos-dim-1">0.01</div>
+            <div class="qos-real">20ms/2s</div>
+          </div>
+          <div class="qos-result-card">
+            <div class="qos-dim">3. 丢包率</div>
+            <div class="qos-val" id="qos-dim-2">0.001</div>
+            <div class="qos-real">0.1%</div>
+          </div>
+          <div class="qos-result-card">
+            <div class="qos-dim">4. 吞吐量</div>
+            <div class="qos-val" id="qos-dim-3">0.24</div>
+            <div class="qos-real">240Mbps</div>
+          </div>
+          <div class="qos-result-card">
+            <div class="qos-dim">5. 可靠性</div>
+            <div class="qos-val" id="qos-dim-4">0.80</div>
+            <div class="qos-real">99.99%</div>
+          </div>
+          <div class="qos-result-card">
+            <div class="qos-dim">6. 优先级</div>
+            <div class="qos-val" id="qos-dim-5">0.86</div>
+            <div class="qos-real">6/7</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- QoS向量调整（6维新版本） -->
+      <div class="card qos-panel">
+        <h3>QoS 向量 (6维,可调整)<span class="qos-auto-badge" id="qos-mode-badge">自动</span></h3>
+        <div class="qos-items">
+          <div class="qos-item">
+            <label>时延预算 (Latency)<span class="qos-auto-badge" id="qos-lat-auto">自动</span></label>
+            <div class="slider-row">
+              <input type="range" id="qos-lat" min="0" max="1" step="0.01" value="0.05" oninput="updateQoS('lat')" />
+              <span class="value" id="qos-lat-value">0.05</span>
+            </div>
+          </div>
+          <div class="qos-item">
+            <label>抖动上限 (Jitter)<span class="qos-auto-badge" id="qos-jitter-auto">自动</span></label>
+            <div class="slider-row">
+              <input type="range" id="qos-jitter" min="0" max="1" step="0.01" value="0.025" oninput="updateQoS('jitter')" />
+              <span class="value" id="qos-jitter-value">0.03</span>
+            </div>
+          </div>
+          <div class="qos-item">
+            <label>丢包率 (Loss)<span class="qos-auto-badge" id="qos-loss-auto">自动</span></label>
+            <div class="slider-row">
+              <input type="range" id="qos-loss" min="0" max="1" step="0.01" value="0.5" oninput="updateQoS('loss')" />
+              <span class="value" id="qos-loss-value">0.50</span>
+            </div>
+          </div>
+          <div class="qos-item">
+            <label>吞吐量 (Throughput)<span class="qos-auto-badge" id="qos-bw-auto">自动</span></label>
+            <div class="slider-row">
+              <input type="range" id="qos-bw" min="0" max="1" step="0.01" value="0.002" oninput="updateQoS('bw')" />
+              <span class="value" id="qos-bw-value">0.00</span>
+            </div>
+          </div>
+          <div class="qos-item">
+            <label>可靠性 (Reliability)<span class="qos-auto-badge" id="qos-rel-auto">自动</span></label>
+            <div class="slider-row">
+              <input type="range" id="qos-rel" min="0" max="1" step="0.01" value="0.6" oninput="updateQoS('rel')" />
+              <span class="value" id="qos-rel-value">0.60</span>
+            </div>
+          </div>
+          <div class="qos-item">
+            <label>优先级 (Priority)<span class="qos-auto-badge" id="qos-pri-auto">自动</span></label>
+            <div class="slider-row">
+              <input type="range" id="qos-pri" min="0" max="1" step="0.01" value="0.57" oninput="updateQoS('pri')" />
+              <span class="value" id="qos-pri-value">0.57</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="message" class="message"></div>
+
+      <!-- 编排结果 -->
+      <div class="card result-panel" id="result-panel">
+        <h3>编排结果</h3>
+        <div class="result-content" id="orchestration-result"></div>
+      </div>
+
+      <div class="actions">
+        <button class="secondary-btn" onclick="goPrev()">返回修改</button>
+        <button class="secondary-btn" onclick="goToOrchestration()">资源编排可视化</button>
+        <button id="orch-btn" class="primary-btn" onclick="submitOrchestration()">提交编排</button>
+      </div>
+    </div>
+
+    <!-- 浮动说明按钮 -->
+    <div class="guide-float-btn" onclick="openMappingGuide()" title="查看QoS映射说明">
+      <span>📖</span>
+    </div>
+
+    <script src="js/step-workflow.js"></script>
+    <script>
+      if (!requireAuth()) { throw new Error("Not logged in"); }
+      const state = StepState.load();
+      const modelType = state.model_type || "CFM";
+      const anomalyScore = state.anomaly_score || 0.5;
+      let currentRiskLevel = "MEDIUM";
+      let qosVector = state.qos_vector || [0.05, 0.025, 0.5, 0.002, 0.6, 0.57];
+      let isAutoQoS = true;
+
+      // 新版QoS规则（三层设计 - 参考qos_translator.py）
+      const QoS_RULES = {
+        critical: {
+          safety: { latency_ms: 50, reliability_class: 5, priority: 7, loss_pct: 0.01, jitter_ratio: 0.1 },
+          quality: { latency_ms: 50, reliability_class: 5, priority: 7, loss_pct: 0.01, jitter_ratio: 0.1 },
+          maintenance: { latency_ms: 100, reliability_class: 4, priority: 7, loss_pct: 0.1, jitter_ratio: 0.1 },
+          monitoring: { latency_ms: 100, reliability_class: 4, priority: 7, loss_pct: 0.1, jitter_ratio: 0.1 }
+        },
+        high: {
+          safety: { latency_ms: 200, reliability_class: 4, priority: 6, loss_pct: 0.1, jitter_ratio: 0.1 },
+          quality: { latency_ms: 200, reliability_class: 4, priority: 6, loss_pct: 0.1, jitter_ratio: 0.1 },
+          maintenance: { latency_ms: 300, reliability_class: 3, priority: 5, loss_pct: 0.5, jitter_ratio: 0.1 },
+          monitoring: { latency_ms: 500, reliability_class: 3, priority: 4, loss_pct: 0.5, jitter_ratio: 0.1 }
+        },
+        medium: {
+          safety: { latency_ms: 1000, reliability_class: 3, priority: 4, loss_pct: 0.5, jitter_ratio: 0.2 },
+          quality: { latency_ms: 1000, reliability_class: 3, priority: 4, loss_pct: 0.5, jitter_ratio: 0.2 },
+          maintenance: { latency_ms: 2000, reliability_class: 3, priority: 3, loss_pct: 0.5, jitter_ratio: 0.2 },
+          monitoring: { latency_ms: 3000, reliability_class: 2, priority: 2, loss_pct: 1.0, jitter_ratio: 0.2 }
+        },
+        normal: {
+          safety: { latency_ms: 5000, reliability_class: 3, priority: 2, loss_pct: 0.5, jitter_ratio: 0.2 },
+          quality: { latency_ms: 5000, reliability_class: 3, priority: 2, loss_pct: 0.5, jitter_ratio: 0.2 },
+          maintenance: { latency_ms: 8000, reliability_class: 2, priority: 1, loss_pct: 1.0, jitter_ratio: 0.2 },
+          monitoring: { latency_ms: 5000, reliability_class: 2, priority: 2, loss_pct: 1.0, jitter_ratio: 0.2 }
+        }
+      };
+
+      const RELIABILITY_MAP = {
+        5: "99.999%",  // 极高
+        4: "99.99%",   // 高
+        3: "99.9%",    // 中
+        2: "99%"       // 尽力而为
+      };
+
+      const SCENARIOS = {
+        safety: "安全监控",
+        quality: "质量检测",
+        maintenance: "巡检维护",
+        monitoring: "周期性监控"
+      };
+
+      const DATA_INFO = {
+        // 点云数据 (CFM模型)
+        pointcloud: { size: 50, compression: 0.3 },
+        // 图像数据 (CFM模型)
+        image: { size: 0.5, compression: 0.8 },
+        // 视频数据 (Jigsaw模型)
+        video: { size: 100, compression: 0.5 }
+      };
+
+      // 归一化参数
+      const NORMALIZE_PARAMS = {
+        max_latency_ms: 10000.0,
+        max_jitter_ms: 2000.0,
+        max_loss_rate: 1.0,
+        max_throughput_mbps: 1000.0,
+        max_priority: 7.0
+      };
+
+      // 根据异常分数计算6维QoS向量（新三层设计）
+      function calculateQoSMapping(score, scenario = "quality", dataType = "image", dataSizeMb = null) {
+        // 1. 确定异常等级 (使用后端阈值)
+        const THRESHOLD = { CRITICAL: 0.7899, HIGH: 0.765, MEDIUM: 0.7413 };
+
+        let level = "normal";
+        if (score >= 0.7899) level = "critical";  // 兼容旧阈值
+        else if (score >= 0.765) level = "high";
+        else if (score >= 0.7413) level = "medium";
+        else level = "normal";
+
+        // 2. 获取规则
+        const rule = (QoS_RULES[level] && QoS_RULES[level][scenario])
+          || QoS_RULES[level]?.quality || QoS_RULES.normal.quality;
+
+        // 3. 数据量
+        const dataInfo = DATA_INFO[dataType] || DATA_INFO.image;
+        const dataSize = dataSizeMb || dataInfo.size; // MB
+
+        // 4. 计算QoS参数
+        const latencyMs = rule.latency_ms;
+        const jitterMs = latencyMs * rule.jitter_ratio;
+        const lossPct = rule.loss_pct;
+        const reliabilityClass = rule.reliability_class;
+        const priority = rule.priority;
+        const reliability = RELIABILITY_MAP[reliabilityClass] || "99%";
+
+        // 5. 计算吞吐量 (Mbps)
+        const throughputMbps = (dataSize / (latencyMs / 1000)) * 1.2;
+
+        // 6. 构建6维归一化QoS向量
+        // [latency_budget, jitter_bound, loss_tolerance, throughput, reliability_class, priority]
+        const qosVector = [
+          latencyMs / NORMALIZE_PARAMS.max_latency_ms,
+          jitterMs / NORMALIZE_PARAMS.max_jitter_ms,
+          lossPct / NORMALIZE_PARAMS.max_loss_rate,
+          throughputMbps / NORMALIZE_PARAMS.max_throughput_mbps,
+          reliabilityClass / 5.0,
+          priority / NORMALIZE_PARAMS.max_priority
+        ];
+
+        return {
+          level,
+          scenario,
+          dataType,
+          dataSize,
+          latencyMs,
+          jitterMs,
+          lossPct,
+          reliability,
+          reliabilityClass,
+          priority,
+          throughputMbps,
+          qosVector
+        };
+      }
+
+      // 更新界面显示
+      function updateDisplay(result) {
+        // 输入因素
+        document.getElementById("input-score").textContent = anomalyScore.toFixed(4);
+        document.getElementById("input-level").textContent = result.level;
+        document.getElementById("input-data").textContent = result.dataType;
+        document.getElementById("input-data-desc").textContent = `${result.dataSize}MB`;
+
+        // 计算流程
+        document.getElementById("calc-score").textContent = anomalyScore.toFixed(2);
+        document.getElementById("calc-level").textContent = result.level;
+        document.getElementById("calc-scenario").textContent = SCENARIOS[result.scenario];
+        document.getElementById("calc-data-size").textContent = result.dataSize + "MB";
+
+        // 计算公式
+        document.getElementById("formula-latency").textContent = result.latencyMs + "ms";
+        document.getElementById("formula-throughput").textContent = result.throughput.toFixed(0) + " Mbps";
+        document.getElementById("formula-jitter").textContent = result.jitterMs + "ms";
+        document.getElementById("formula-reliability").textContent = result.reliability;
+        document.getElementById("formula-priority").textContent = result.priority;
+
+        // 计算结果
+        document.getElementById("res-latency").textContent = result.latencyMs + "ms";
+        document.getElementById("res-throughput").textContent = result.throughput.toFixed(0);
+        document.getElementById("res-jitter").textContent = result.jitterMs;
+        document.getElementById("res-loss").textContent = result.loss;
+        document.getElementById("res-reliability").textContent = result.reliability;
+        document.getElementById("res-priority").textContent = result.priority;
+
+        // 数据特征
+        document.getElementById("data-type").textContent = result.dataType;
+        document.getElementById("data-size").textContent = result.dataSize + " MB";
+        document.getElementById("calc-bandwidth").textContent = result.throughput.toFixed(0) + " Mbps";
+
+        // 6维QoS向量（归一化）
+        const qosDim0 = result.latencyMs / 10000;      // 时延 归一化
+        const qosDim1 = result.jitterMs / 2000;        // 抖动归一化
+        const qosDim2 = result.loss / 100;            // 丢包率归一化
+        const qosDim3 = result.throughput / 1000;   // 吞吐量归一化
+        const qosDim4 = parseFloat(result.reliability.replace("%","")) / 100; // 可靠性归一化
+        const qosDim5 = result.priority / 7;          // 优先级归一化
+
+        document.getElementById("qos-dim-0").textContent = qosDim0.toFixed(3);
+        document.getElementById("qos-dim-0").nextElementSibling.textContent = `${result.latencyMs}ms/10s`;
+        document.getElementById("qos-dim-1").textContent = qosDim1.toFixed(3);
+        document.getElementById("qos-dim-1").nextElementSibling.textContent = `${result.jitterMs}ms/2s`;
+        document.getElementById("qos-dim-2").textContent = qosDim2.toFixed(3);
+        document.getElementById("qos-dim-2").nextElementSibling.textContent = `${result.loss}%`;
+        document.getElementById("qos-dim-3").textContent = qosDim3.toFixed(3);
+        document.getElementById("qos-dim-3").nextElementSibling.textContent = `${result.throughput.toFixed(0)}Mbps`;
+        document.getElementById("qos-dim-4").textContent = qosDim4.toFixed(3);
+        document.getElementById("qos-dim-4").nextElementSibling.textContent = result.reliability;
+        document.getElementById("qos-dim-5").textContent = qosDim5.toFixed(3);
+        document.getElementById("qos-dim-5").nextElementSibling.textContent = `${result.priority}/7`;
+
+        // 高亮表格当前行
+        document.querySelectorAll(".mapping-table tr").forEach(row => {
+          row.classList.remove("active");
+          if (row.dataset.level === result.level && row.dataset.scenario === result.scenario) {
+            row.classList.add("active");
+          }
+        });
+
+        // 更新QoS滑块（使用简化的4维）
+        qosVector = [
+          qosDim3, // 吞吐量
+          qosDim0, // 时延
+          qosDim5, // 优先级
+          qosDim2  // 丢包率
+        ];
+        updateQoSDisplays();
+      }
+
+      async function loadThresholds() {
+        try {
+          const resp = await fetch(`http://127.0.0.1:8001/api/thresholds`);
+          const thresholds = await resp.json();
+          renderThresholds(modelType, thresholds);
+        } catch (e) {
+          renderThresholds(modelType, {
+            cfm: { CRITICAL: 0.7899, HIGH: 0.765, MEDIUM: 0.7413 },
+            jigsaw: { CRITICAL: 0.9763, HIGH: 0.917, MEDIUM: 0.8306 }
+          });
+        }
+      }
+
+      function renderThresholds(model, thresholds) {
+        const modelKey = model.toLowerCase();
+        const threshold = thresholds[modelKey] || thresholds["cfm"];
+        document.getElementById("threshold-model").textContent = model.toUpperCase();
+
+        const items = [
+          { level: "NORMAL", range: `0.0 - ${threshold.MEDIUM}`, class: "NORMAL" },
+          { level: "MEDIUM", range: `${threshold.MEDIUM} - ${threshold.HIGH}`, class: "MEDIUM" },
+          { level: "HIGH", range: `${threshold.HIGH} - ${threshold.CRITICAL}`, class: "LOW" },
+          { level: "CRITICAL", range: `${threshold.CRITICAL} - 1.0`, class: "CRITICAL" }
+        ];
+
+        document.getElementById("threshold-items").innerHTML = items.map(item =>
+          `<div class="threshold-item ${item.class}"><div class="range">${item.range}</div><div class="level">${item.level}</div></div>`
+        ).join("");
+      }
+
+      async function displayScoreWithThreshold() {
+        const score = state.anomaly_score || 0.5;
+        document.getElementById("anomaly-score").textContent = score.toFixed(4);
+
+        // 根据阈值计算风险等级
+        try {
+          const resp = await fetch(`http://127.0.0.1:8001/api/thresholds`);
+          const thresholds = await resp.json();
+          const modelKey = modelType.toLowerCase();
+          const th = thresholds[modelKey] || thresholds["cfm"];
+
+          if (score >= th.CRITICAL) currentRiskLevel = "CRITICAL";
+          else if (score >= th.HIGH) currentRiskLevel = "HIGH";
+          else if (score >= th.MEDIUM) currentRiskLevel = "MEDIUM";
+          else currentRiskLevel = "NORMAL";
+
+          // 映射到L0-L3
+          const levelMap = { NORMAL: "L0", MEDIUM: "L1", HIGH: "L2", CRITICAL: "L3" };
+          const level = levelMap[currentRiskLevel];
+
+          const levelEl = document.getElementById("risk-level");
+          levelEl.textContent = currentRiskLevel;
+          levelEl.className = "score-level " + currentRiskLevel;
+
+          // 计算QoS映射 - 固定使用quality场景
+          const scenario = "quality";
+          const result = calculateQoSMapping(score, scenario, "pointcloud");
+          updateDisplay(result);
+
+        } catch (e) {
+          currentRiskLevel = "MEDIUM";
+          const levelEl = document.getElementById("risk-level");
+          levelEl.textContent = currentRiskLevel;
+          levelEl.className = "score-level " + currentRiskLevel;
+        }
+      }
+
+      function updateQoSDisplays() {
+        // 6维QoS: [latency, jitter, loss, throughput, reliability, priority]
+        document.getElementById("qos-lat").value = qosVector[0];
+        document.getElementById("qos-lat-value").textContent = qosVector[0].toFixed(3);
+        document.getElementById("qos-jitter").value = qosVector[1];
+        document.getElementById("qos-jitter-value").textContent = qosVector[1].toFixed(3);
+        document.getElementById("qos-loss").value = qosVector[2];
+        document.getElementById("qos-loss-value").textContent = qosVector[2].toFixed(3);
+        document.getElementById("qos-bw").value = qosVector[3];
+        document.getElementById("qos-bw-value").textContent = qosVector[3].toFixed(4);
+        document.getElementById("qos-rel").value = qosVector[4];
+        document.getElementById("qos-rel-value").textContent = qosVector[4].toFixed(2);
+        document.getElementById("qos-pri").value = qosVector[5];
+        document.getElementById("qos-pri-value").textContent = qosVector[5].toFixed(2);
+
+        const modeBadge = document.getElementById("qos-mode-badge");
+        modeBadge.textContent = isAutoQoS ? "自动" : "手动";
+        modeBadge.className = "qos-auto-badge " + (isAutoQoS ? "auto" : "manual");
+      }
+
+      function updateQoS(type) {
+        // 6维索引: [0:latency, 1:jitter, 2:loss, 3:throughput, 4:reliability, 5:priority]
+        if (type === "lat") {
+          qosVector[0] = parseFloat(document.getElementById("qos-lat").value);
+          document.getElementById("qos-lat-value").textContent = qosVector[0].toFixed(3);
+        }
+        else if (type === "jitter") {
+          qosVector[1] = parseFloat(document.getElementById("qos-jitter").value);
+          document.getElementById("qos-jitter-value").textContent = qosVector[1].toFixed(3);
+        }
+        else if (type === "loss") {
+          qosVector[2] = parseFloat(document.getElementById("qos-loss").value);
+          document.getElementById("qos-loss-value").textContent = qosVector[2].toFixed(3);
+        }
+        else if (type === "bw") {
+          qosVector[3] = parseFloat(document.getElementById("qos-bw").value);
+          document.getElementById("qos-bw-value").textContent = qosVector[3].toFixed(4);
+        }
+        else if (type === "rel") {
+          qosVector[4] = parseFloat(document.getElementById("qos-rel").value);
+          document.getElementById("qos-rel-value").textContent = qosVector[4].toFixed(2);
+        }
+        else if (type === "pri") {
+          qosVector[5] = parseFloat(document.getElementById("qos-pri").value);
+          document.getElementById("qos-pri-value").textContent = qosVector[5].toFixed(2);
+        }
+
+        const modeBadge = document.getElementById("qos-mode-badge");
+        modeBadge.textContent = "手动";
+        modeBadge.className = "qos-auto-badge manual";
+        isAutoQoS = false;
+
+        StepState.updateQoSVector(qosVector);
+      }
+
+      function openMappingGuide() {
+        window.open("../frontend_new/qos-mapping-guide.html", "_blank");
+      }
+
+      StepState.setStep(5);
+      loadThresholds();
+      displayScoreWithThreshold();
+
+      async function submitOrchestration() {
+        const msgEl = document.getElementById("message");
+        const resultPanel = document.getElementById("result-panel");
+        const resultContent = document.getElementById("orchestration-result");
+        const orchBtn = document.getElementById("orch-btn");
+
+        msgEl.textContent = "正在提交编排请求...";
+        msgEl.className = "message";
+        orchBtn.disabled = true;
+
+        try {
+          const taskId = "web-" + Date.now();
+          const apiBody = {
+            task_id: taskId,
+            qos_vector: qosVector,
+            resource_request: { vcpu: 2, memory: 2 },
+            model_type: state.model_type || "CFM"
+          };
+
+          if (state.model_type === "CFM") {
+            apiBody.rgb_path = state.file_paths?.rgb_path || "";
+            apiBody.pcd_path = state.file_paths?.pcd_path || "";
+          }
+
+          const response = await fetch("http://localhost:8001/api/orchestrate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(apiBody)
+          });
+          const result = await response.json();
+
+          if (result.status === "success") {
+            msgEl.textContent = "编排成功！即将跳转到编排结果...";
+            msgEl.className = "message success";
+            resultPanel.classList.add("active");
+            resultContent.textContent = JSON.stringify(result, null, 2);
+            StepState.save("orchestration_result", result);
+            setTimeout(() => { window.location.href = "step6-result.html"; }, 1000);
+          } else if (result.error === "resource_wait_timeout") {
+            msgEl.textContent = "资源不足，请释放资源或重试";
+            msgEl.className = "message warning";
+            showResourceDialog(result);
+            orchBtn.disabled = false;
+          } else {
+            msgEl.textContent = "编排失败: " + (result.error || "未知错误");
+            msgEl.className = "message error";
+            orchBtn.disabled = false;
+          }
+        } catch (error) {
+          msgEl.textContent = "请求失败: " + error.message;
+          msgEl.className = "message error";
+          orchBtn.disabled = false;
+        }
+      }
+
+      function goPrev() { window.location.href = "step4-model-confirm.html"; }
+
+      function showResourceDialog(result) {
+        const resourceDetail = result.resource_detail || {};
+        const dialog = document.createElement('div');
+        dialog.innerHTML = `
+          <div class="dialog-overlay">
+            <div class="dialog-content">
+              <h3>⚠️ 资源不足</h3>
+              <p>等待后无可用资源</p>
+              <pre>${JSON.stringify(resourceDetail, null, 2)}</pre>
+              <div class="dialog-buttons">
+                <button id="btn-release" class="btn btn-warning">释放资源</button>
+                <button id="btn-cancel" class="btn btn-secondary">取消</button>
+              </div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(dialog);
+        document.getElementById('btn-cancel').onclick = () => dialog.remove();
+        document.getElementById('btn-release').onclick = () => dialog.remove();
+      }
+
+      function goToOrchestration() { window.location.href = "step6-orchestration-visualization.html"; }
+
+      function logout() {
+        localStorage.removeItem("qos_token");
+        localStorage.removeItem("qos_user");
+        window.location.href = "../index.html";
+      }
+    </script>
+  </body>
+</html>

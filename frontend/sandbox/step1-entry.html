@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QoS 编排 - 步骤1：选择模式</title>
+    <link rel="stylesheet" href="../assets/styles.css" />
+    <style>
+      .step-container {
+        max-width: 900px;
+        margin: 40px auto;
+        padding: 20px;
+      }
+      .step-header {
+        text-align: center;
+        margin-bottom: 40px;
+      }
+      .step-header h1 {
+        font-size: 28px;
+        color: #1a1a2e;
+        margin-bottom: 8px;
+      }
+      .step-header .step-indicator {
+        color: #666;
+        font-size: 14px;
+      }
+      .ghost-btn {
+        background: transparent;
+        color: #6b7280;
+        border: 1px solid #d1d5db;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        position: absolute;
+        top: 20px;
+        right: 20px;
+      }
+      .ghost-btn:hover {
+        background: #f3f4f6;
+      }
+
+      /* 模式选择卡片 */
+      .mode-cards {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 24px;
+        margin-top: 32px;
+      }
+      .mode-card {
+        background: #fff;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 32px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+      }
+      .mode-card:hover {
+        border-color: #3b82f6;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+        transform: translateY(-2px);
+      }
+      .mode-card.selected {
+        border-color: #3b82f6;
+        background: #eff6ff;
+      }
+      .mode-card .icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+      }
+      .mode-card h3 {
+        font-size: 20px;
+        color: #1a1a2e;
+        margin: 0 0 8px;
+      }
+      .mode-card p {
+        color: #666;
+        font-size: 14px;
+        margin: 0;
+      }
+
+      /* QoS向量选择面板 */
+      .qos-panel {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 24px;
+        margin-top: 32px;
+        display: none;
+      }
+      .qos-panel.active {
+        display: block;
+      }
+      .qos-panel h3 {
+        margin: 0 0 20px;
+        font-size: 18px;
+        color: #1a1a2e;
+        text-align: center;
+      }
+      .qos-items {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 24px;
+      }
+      .qos-item {
+      }
+      .qos-item label {
+        display: block;
+        font-size: 14px;
+        color: #374151;
+        margin-bottom: 8px;
+      }
+      .qos-item .slider-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .qos-item input[type="range"] {
+        flex: 1;
+        height: 8px;
+        -webkit-appearance: none;
+        background: #e5e7eb;
+        border-radius: 4px;
+      }
+      .qos-item input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 20px;
+        height: 20px;
+        background: #3b82f6;
+        border-radius: 50%;
+        cursor: pointer;
+      }
+      .qos-item .value {
+        min-width: 60px;
+        text-align: right;
+        font-size: 14px;
+        color: #374151;
+        font-weight: 600;
+      }
+
+      .actions {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        margin-top: 40px;
+      }
+      .primary-btn {
+        background: #3b82f6;
+        color: #fff;
+        border: none;
+        padding: 14px 40px;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+      .primary-btn:hover {
+        background: #2563eb;
+      }
+      .primary-btn:disabled {
+        background: #94a3b8;
+        cursor: not-allowed;
+      }
+      .secondary-btn {
+        background: #fff;
+        color: #3b82f6;
+        border: 2px solid #3b82f6;
+        padding: 14px 40px;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+      .secondary-btn:hover {
+        background: #eff6ff;
+      }
+      .message {
+        text-align: center;
+        padding: 12px;
+        border-radius: 8px;
+        margin-top: 16px;
+      }
+      .message.error {
+        background: #fee2e2;
+        color: #dc2626;
+      }
+      .message.success {
+        background: #dcfce7;
+        color: #166534;
+      }
+      .message.loading {
+        background: #dbeafe;
+        color: #1d4ed8;
+      }
+      .message.warning { background: #fef3c7; color: #92400e; }
+      .dialog-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+      .dialog-content { background: #fff; padding: 24px; border-radius: 12px; max-width: 420px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+      .dialog-content h3 { margin: 0 0 12px; color: #92400e; }
+      .dialog-content pre { background: #f3f4f6; padding: 8px; border-radius: 4px; font-size: 12px; overflow-x: auto; }
+      .dialog-buttons { display: flex; gap: 8px; margin-top: 16px; justify-content: center; }
+      .dialog-buttons .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+      .btn-primary { background: #3b82f6; color: #fff; }
+      .btn-warning { background: #f59e0b; color: #fff; }
+      .progress-bar-container { width: 100%; height: 20px; background: #e5e7eb; border-radius: 10px; overflow: hidden; margin: 16px 0; }
+      .progress-bar { height: 100%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); transition: width 0.3s ease; }
+      .progress-text { text-align: center; color: #6b7280; font-size: 14px; }
+      .progress-bar-container { width: 100%; height: 20px; background: #e5e7eb; border-radius: 10px; overflow: hidden; margin: 16px 0; }
+      .progress-bar { height: 100%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); transition: width 0.3s ease; }
+      .progress-text { text-align: center; color: #6b7280; font-size: 14px; }
+      .btn-secondary { background: #e5e7eb; color: #374151; }
+    </style>
+  </head>
+  <body>
+    <div class="step-container">
+      <div class="step-header">
+        <h1>QoS 智能编排系统</h1>
+        <p class="step-indicator" id="step-indicator">步骤 1 / 5 · 选择编排模式</p>
+        <button class="ghost-btn" onclick="logout()">退出登录</button>
+      </div>
+
+      <!-- 模式选择 -->
+      <div class="mode-cards" id="mode-cards">
+        <div class="mode-card" id="qos-mode" onclick="selectMode('qos')">
+          <div class="icon">📊</div>
+          <h3>QoS 向量编排</h3>
+          <p>直接输入 QoS 向量进行资源编排<br/>适用于已有明确 QoS 需求的场景</p>
+        </div>
+
+        <div class="mode-card" id="data-mode" onclick="selectMode('data')">
+          <div class="icon">🔍</div>
+          <h3>数据驱动的异常检测</h3>
+          <p>通过图像/点云或视频进行异常检测<br/>自动生成 QoS 向量</p>
+        </div>
+      </div>
+
+      <!-- QoS向量调整面板 (6维新版本) -->
+      <div class="qos-panel" id="qos-panel">
+        <h3>QoS 向量设置 (6维)</h3>
+        <div class="qos-items">
+          <div class="qos-item">
+            <label>时延预算 (Latency)</label>
+            <div class="slider-row">
+              <input type="range" id="qos-lat" min="0" max="1" step="0.01" value="0.05" oninput="updateQoS('lat')" />
+              <span class="value" id="qos-lat-value">0.05</span>
+            </div>
+          </div>
+          <div class="qos-item">
+            <label>抖动上限 (Jitter)</label>
+            <div class="slider-row">
+              <input type="range" id="qos-jitter" min="0" max="1" step="0.01" value="0.025" oninput="updateQoS('jitter')" />
+              <span class="value" id="qos-jitter-value">0.03</span>
+            </div>
+          </div>
+          <div class="qos-item">
+            <label>丢包率 (Loss)</label>
+            <div class="slider-row">
+              <input type="range" id="qos-loss" min="0" max="1" step="0.01" value="0.5" oninput="updateQoS('loss')" />
+              <span class="value" id="qos-loss-value">0.50</span>
+            </div>
+          </div>
+          <div class="qos-item">
+            <label>吞吐量 (Throughput)</label>
+            <div class="slider-row">
+              <input type="range" id="qos-bw" min="0" max="1" step="0.01" value="0.002" oninput="updateQoS('bw')" />
+              <span class="value" id="qos-bw-value">0.00</span>
+            </div>
+          </div>
+          <div class="qos-item">
+            <label>可靠性 (Reliability)</label>
+            <div class="slider-row">
+              <input type="range" id="qos-rel" min="0" max="1" step="0.01" value="0.6" oninput="updateQoS('rel')" />
+              <span class="value" id="qos-rel-value">0.60</span>
+            </div>
+          </div>
+          <div class="qos-item">
+            <label>优先级 (Priority)</label>
+            <div class="slider-row">
+              <input type="range" id="qos-pri" min="0" max="1" step="0.01" value="0.57" oninput="updateQoS('pri')" />
+              <span class="value" id="qos-pri-value">0.57</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="message" class="message"></div>
+
+      <div class="actions">
+        <button id="next-btn" class="primary-btn" onclick="goNext()" disabled>下一步</button>
+        <button id="orch-btn" class="primary-btn" onclick="submitOrchestration()" style="display: none; background: #10b981;">立即编排</button>
+        <button id="back-btn" class="secondary-btn" onclick="goBack()" style="display: none;">重新选择</button>
+      </div>
+    </div>
+
+    <script src="js/step-workflow.js"></script>
+    <script>
+      // 检查登录
+      if (!requireAuth()) {
+        throw new Error("未登录");
+      }
+
+      // 清空之前的状态，重新开始
+      StepState.clear();
+      StepState.setStep(1);
+
+      let selectedMode = null;
+      // 6维QoS向量: [latency, jitter, loss, throughput, reliability, priority]
+      let qosVector = [0.05, 0.025, 0.5, 0.002, 0.6, 0.57];
+
+      function selectMode(mode) {
+        selectedMode = mode;
+
+        // 更新UI
+        document.querySelectorAll('.mode-card').forEach(card => {
+          card.classList.remove('selected');
+        });
+
+        const cardId = mode === 'qos' ? 'qos-mode' : 'data-mode';
+        document.getElementById(cardId).classList.add('selected');
+
+        // 保存选择
+        StepState.save("step_mode", mode);
+
+        if (mode === 'qos') {
+          // QoS模式：显示QoS向量调整面板
+          document.getElementById('qos-panel').classList.add('active');
+          document.getElementById('step-indicator').textContent = '步骤 1 / 5 · QoS向量设置';
+          document.getElementById('next-btn').style.display = 'none';
+          document.getElementById('orch-btn').style.display = 'inline-block';
+          document.getElementById('back-btn').style.display = 'inline-block';
+          setMessage('message', '请设置QoS向量参数', 'success');
+        } else {
+          // 数据模式：启用下一步按钮
+          document.getElementById('qos-panel').classList.remove('active');
+          document.getElementById('step-indicator').textContent = '步骤 1 / 5 · 选择编排模式';
+          document.getElementById('next-btn').style.display = 'inline-block';
+          document.getElementById('orch-btn').style.display = 'none';
+          document.getElementById('back-btn').style.display = 'none';
+          document.getElementById('next-btn').disabled = false;
+          setMessage('message', '已选择：数据驱动的异常检测', 'success');
+        }
+      }
+
+      function updateQoS(type) {
+        if (type === "lat") {
+          qosVector[0] = parseFloat(document.getElementById("qos-lat").value);
+          document.getElementById("qos-lat-value").textContent = qosVector[0].toFixed(3);
+        } else if (type === "jitter") {
+          qosVector[1] = parseFloat(document.getElementById("qos-jitter").value);
+          document.getElementById("qos-jitter-value").textContent = qosVector[1].toFixed(3);
+        } else if (type === "loss") {
+          qosVector[2] = parseFloat(document.getElementById("qos-loss").value);
+          document.getElementById("qos-loss-value").textContent = qosVector[2].toFixed(3);
+        } else if (type === "bw") {
+          qosVector[3] = parseFloat(document.getElementById("qos-bw").value);
+          document.getElementById("qos-bw-value").textContent = qosVector[3].toFixed(4);
+        } else if (type === "rel") {
+          qosVector[4] = parseFloat(document.getElementById("qos-rel").value);
+          document.getElementById("qos-rel-value").textContent = qosVector[4].toFixed(2);
+        } else if (type === "pri") {
+          qosVector[5] = parseFloat(document.getElementById("qos-pri").value);
+          document.getElementById("qos-pri-value").textContent = qosVector[5].toFixed(2);
+        }
+        // 保存QoS向量到状态
+        StepState.updateQoSVector(qosVector);
+      }
+
+      function goBack() {
+        // 重置到模式选择
+        selectedMode = null;
+        document.querySelectorAll('.mode-card').forEach(card => {
+          card.classList.remove('selected');
+        });
+        document.getElementById('qos-panel').classList.remove('active');
+        document.getElementById('step-indicator').textContent = '步骤 1 / 5 · 选择编排模式';
+        document.getElementById('next-btn').style.display = 'inline-block';
+        document.getElementById('next-btn').disabled = true;
+        document.getElementById('orch-btn').style.display = 'none';
+        document.getElementById('back-btn').style.display = 'none';
+        setMessage('message', '');
+        StepState.save("step_mode", null);
+      }
+
+      async function submitOrchestration() {
+        const msgEl = document.getElementById("message");
+        const orchBtn = document.getElementById("orch-btn");
+
+        msgEl.textContent = "正在提交编排请求...";
+        msgEl.className = "message loading";
+        orchBtn.disabled = true;
+        orchBtn.textContent = "处理中...";
+
+        try {
+          const token = localStorage.getItem("qos_token");
+          const taskId = "qos-direct-" + Date.now();
+
+          // 直接调用编排API，不经过异常检测
+          const response = await fetch("http://localhost:8001/api/orchestrate/async", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": token ? `Bearer ${token}` : ""
+            },
+            body: JSON.stringify({
+              task_id: taskId,
+              qos_vector: qosVector,
+              resource_request: {
+                vcpu: 2,
+                memory: 2,
+                storage: 2,
+                bandwidth: 2
+              },
+              max_wait_seconds: 30
+            })
+          });
+
+          const result = await response.json();
+
+          if (result.status === "success") { setTimeout(() => { window.location.href = "step6-result.html";
+            }, 1000);
+          } else if (result.status === "waiting") {
+            showWaitingDialog(result.poll_token, result.task_id, result.max_wait_seconds, msgEl, orchBtn);
+          } else if (result.error === "resource_wait_timeout") {
+            msgEl.textContent = "资源不足，请释放资源或重试";
+            msgEl.className = "message warning";
+            showResourceDialog(result);
+            orchBtn.disabled = false;
+            orchBtn.textContent = "立即编排";
+          } else {
+            msgEl.textContent = "编排失败: " + (result.error || "Unknown error");
+            msgEl.className = "message error";
+            orchBtn.disabled = false;
+            orchBtn.textContent = "立即编排";
+          }
+        } catch (error) {
+          msgEl.textContent = "请求失败: " + error.message;
+          msgEl.className = "message error";
+          orchBtn.disabled = false;
+          orchBtn.textContent = "立即编排";
+        }
+      }
+
+      // 保存编排历史记录
+      function saveOrchestrationHistory(record) {
+        try {
+          let history = JSON.parse(localStorage.getItem("orchestration_history") || "[]");
+          history.unshift({
+            ...record,
+            createdAt: new Date().toISOString()
+          });
+          // 保留最近20条记录
+          history = history.slice(0, 20);
+          localStorage.setItem("orchestration_history", JSON.stringify(history));
+        } catch (e) {
+          console.error("保存编排历史失败:", e);
+        }
+      }
+
+      // 显示资源不足弹窗
+      function showResourceDialog(result) {
+        const resourceDetail = result.resource_detail || {};
+        const resourceNeed = result.resource_need || {};
+        const waitSeconds = result.resource_wait_seconds || 5;
+
+        const dialog = document.createElement('div');
+        dialog.id = 'resource-dialog';
+        dialog.innerHTML = `
+          <div class="dialog-overlay">
+            <div class="dialog-content">
+              <h3>⚠️ 资源不足</h3>
+              <p>等待 <strong>${waitSeconds.toFixed(1)}秒</strong> 后仍无可用资源</p>
+              <div class="resource-need">
+                <h4>需要资源：</h4>
+                <pre>${JSON.stringify(resourceNeed, null, 2)}</pre>
+              </div>
+              <div class="resource-current">
+                <h4>节点 ${resourceDetail.resource_id} 当前状态：</h4>
+                <pre>需要: vcpu=${resourceDetail.need?.vcpu}, memory=${resourceDetail.need?.memory_gb}GB
+可用: vcpu=${resourceDetail.free?.vcpu}, memory=${resourceDetail.free?.memory_gb}GB</pre>
+              </div>
+              <div class="dialog-buttons">
+                <button id="btn-release" class="btn btn-warning">释放资源</button>
+                <button id="btn-retry" class="btn btn-primary">重试编排</button>
+                <button id="btn-cancel" class="btn btn-secondary">取消</button>
+              </div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(dialog);
+
+        document.getElementById('btn-cancel').onclick = () => dialog.remove();
+        document.getElementById('btn-release').onclick = async () => {
+          try {
+            const histResp = await fetch('http://localhost:8001/api/history');
+            const history = await histResp.json();
+            const allocationIds = [];
+            for (const h of (history.history || []).slice(-10)) {
+              for (const nodeId of Object.keys(h.node_allocation || {})) {
+                allocationIds.push(h.allocation_id);
+              }
+            }
+            const uniq = [...new Set(allocationIds)];
+            if (uniq.length > 0) {
+              await fetch('http://localhost:8001/api/release', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({allocation_ids: uniq})
+              });
+            }
+            alert('已释放 ' + uniq.length + ' 个资源分配');
+            dialog.remove();
+          } catch (e) {
+            alert('释放失败: ' + e.message);
+          }
+        };
+        document.getElementById('btn-retry').onclick = () => {
+          dialog.remove();
+          doOrchestrate();
+        };
+      }
+
+      // 显示等待资源弹窗（带进度条）
+      function showWaitingDialog(pollToken, taskId, maxWait, msgEl, orchBtn) {
+        const dialog = document.createElement('div');
+        dialog.id = 'waiting-dialog';
+        dialog.innerHTML = `
+          <div class="dialog-overlay">
+            <div class="dialog-content">
+              <h3>⏳ 等待资源释放</h3>
+              <div class="progress-bar-container">
+                <div class="progress-bar" id="wait-progress" style="width: 0%"></div>
+              </div>
+              <p class="progress-text" id="wait-progress-text">正在等待... (0/${maxWait}秒)</p>
+              <div class="dialog-buttons">
+                <button id="btn-cancel-wait" class="btn btn-secondary">取消等待</button>
+              </div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(dialog);
+
+        let polling = true;
+        const pollInterval = setInterval(async () => {
+          if (!polling) { clearInterval(pollInterval); return; }
+          try {
+            const resp = await fetch('http://localhost:8001/api/orchestrate/poll', {
+              method: 'POST', headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({poll_token: pollToken})
+            });
+            const pollResult = await resp.json();
+
+            if (pollResult.status === 'waiting') {
+              const progress = pollResult.progress || 0;
+              const elapsed = pollResult.elapsed_seconds || 0;
+              document.getElementById('wait-progress').style.width = progress + '%';
+              document.getElementById('wait-progress-text').textContent = pollResult.message || `等待中... (${elapsed}/${maxWait}秒)`;
+            } else if (pollResult.status === 'done' || pollResult.status === 'success') {
+              clearInterval(pollInterval); polling = false;
+              dialog.remove();
+              const r = pollResult.result || pollResult;
+              if (r.status === 'success') {
+                msgEl.textContent = "编排成功！即将跳转到编排结果...";
+                msgEl.className = "message success";
+                StepState.save("orchestration_result", r);
+                StepState.save("qos_vector", qosVector);
+                StepState.save("orchestration_mode", "direct");
+                setTimeout(() => { window.location.href = "step6-result.html"; }, 1000);
+              } else {
+                msgEl.textContent = "编排失败: " + (r.error || "未知错误");
+                msgEl.className = "message warning";
+                showResourceDialog(r);  // 显示资源对话框
+                orchBtn.disabled = false; orchBtn.textContent = "立即编排";
+              }
+            } else if (pollResult.status === 'failed') {
+              clearInterval(pollInterval); polling = false;
+              dialog.remove();
+              msgEl.textContent = "资源不足: " + (pollResult.error || "未知错误");
+              msgEl.className = "message warning";
+              showResourceDialog(pollResult);  // 显示资源对话框允许重试
+              orchBtn.disabled = false; orchBtn.textContent = "立即编排";
+            }
+          } catch (e) { console.error("轮询失败:", e); }
+        }, 1000);
+
+        document.getElementById('btn-cancel-wait').onclick = () => {
+          clearInterval(pollInterval); polling = false;
+          dialog.remove();
+          msgEl.textContent = "已取消等待";
+          msgEl.className = "message";
+          orchBtn.disabled = false; orchBtn.textContent = "立即编排";
+        };
+      }
+
+      function goNext() {
+        if (!selectedMode) {
+          setMessage('message', '请先选择一种编排模式', 'error');
+          return;
+        }
+
+        if (selectedMode === 'qos') {
+          // QoS模式不再跳转到step3，直接在这里完成
+          window.location.href = 'step3-file-input.html';
+        } else {
+          // 数据模式继续下一步
+          window.location.href = 'step2-data-type.html';
+        }
+      }
+
+      function logout() {
+        localStorage.removeItem("qos_token");
+        localStorage.removeItem("qos_user");
+        window.location.href = "../index.html";
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "cfm": {
+    "CRITICAL": 0.7899,
+    "HIGH": 0.765,
+    "MEDIUM": 0.7413
+  },
+  "jigsaw": {
+    "CRITICAL": 0.9763,
+    "HIGH": 0.917,
+    "MEDIUM": 0.8306
+  }
+}

@@ -12,8 +12,14 @@ const resourceProfileSelect = document.getElementById("resource-profile");
 const refreshResourceBtn = document.getElementById("refresh-resource-btn");
 const resourceLoadMessageEl = document.getElementById("resource-load-message");
 
+// 模型选择相关
+const modelTypeSelect = document.getElementById("model-type");
+const cfmInputs = document.getElementById("cfm-inputs");
+const jigsawInputs = document.getElementById("jigsaw-inputs");
+
 let pathSaved = false;
-let savedPaths = { businessImagePath: "", pointCloudPath: "" };
+let savedModelType = "CFM";
+let savedPaths = { businessImagePath: "", pointCloudPath: "", videoPath: "", auxiliaryImagePath: "" };
 let downloadableBlob = null;
 let activeResources = [];
 
@@ -24,6 +30,15 @@ function setMessage(text, type = "") {
 
 function getAuthToken() {
   return localStorage.getItem("qos_token") || "";
+}
+
+function getSelectedResources() {
+  // 从表单获取资源需求
+  const vcpu = Number(document.getElementById("vcpu")?.value) || 2;
+  const memory = Number(document.getElementById("memory")?.value) || 2;
+  const storage = Number(document.getElementById("storage")?.value) || 2;
+  const bandwidth = Number(document.getElementById("bandwidth")?.value) || 2;
+  return { vcpu, memory, storage, bandwidth };
 }
 
 function requireLogin() {
@@ -327,6 +342,26 @@ async function loadActiveResources() {
 }
 
 requireLogin();
+
+// 模型选择切换
+if (modelTypeSelect) {
+  modelTypeSelect.addEventListener("change", () => {
+    const type = modelTypeSelect.value;
+    savedModelType = type;
+    if (type === "CFM") {
+      if (cfmInputs) cfmInputs.style.display = "block";
+      if (jigsawInputs) jigsawInputs.style.display = "none";
+    } else {
+      if (cfmInputs) cfmInputs.style.display = "none";
+      if (jigsawInputs) jigsawInputs.style.display = "block";
+    }
+  });
+}
+
+// 默认显示CFM输入
+if (cfmInputs && jigsawInputs && modelTypeSelect?.value === "CFM") {
+  jigsawInputs.style.display = "none";
+}
 loadActiveResources().then(() => {
   // 加载资源后初始化删除下拉框
   renderDeleteResourceOptions(activeResources);
@@ -344,17 +379,32 @@ pathForm.addEventListener("submit", (event) => {
   event.preventDefault();
   setMessage("");
 
-  const businessImagePath = rgbPathInput.value.trim();
-  const pointCloudPath = pointCloudPathInput.value.trim();
+  const modelType = modelTypeSelect ? modelTypeSelect.value : "CFM";
+  savedModelType = modelType;
 
-  if (!businessImagePath || !pointCloudPath) {
-    setMessage("请填写 RGB 与点云文件路径", "error");
-    return;
+  if (modelType === "CFM") {
+    const businessImagePath = rgbPathInput.value.trim();
+    const pointCloudPath = pointCloudPathInput.value.trim();
+
+    if (!businessImagePath || !pointCloudPath) {
+      setMessage("请填写 RGB 与点云文件路径", "error");
+      return;
+    }
+    savedPaths = { businessImagePath, pointCloudPath, videoPath: "", auxiliaryImagePath: "" };
+  } else {
+    // Jigsaw 模式
+    const videoPath = document.getElementById("video-path")?.value?.trim() || "";
+    const auxImagePath = document.getElementById("aux-image-path")?.value?.trim() || "";
+
+    if (!videoPath && !auxImagePath) {
+      setMessage("请填写视频或图像路径", "error");
+      return;
+    }
+    savedPaths = { businessImagePath: "", pointCloudPath: "", videoPath, auxiliaryImagePath: auxImagePath };
   }
 
-  savedPaths = { businessImagePath, pointCloudPath };
   pathSaved = true;
-  setMessage("路径已保存，请继续填写资源需求", "success");
+  setMessage(`路径已保存 (${modelType}模式)，请继续填写资源需求`, "success");
 });
 
 if (refreshResourceBtn) {
@@ -387,9 +437,18 @@ resourceForm.addEventListener("submit", async (event) => {
   }
 
   const payload = {
-    businessImagePath: savedPaths.businessImagePath,
-    pointCloudPath: savedPaths.pointCloudPath,
+    model_type: savedModelType,
+    resourceRequest: getSelectedResources()
   };
+
+  // 根据模型类型添加数据路径
+  if (savedModelType === "CFM") {
+    payload.businessImagePath = savedPaths.businessImagePath;
+    payload.pointCloudPath = savedPaths.pointCloudPath;
+  } else {
+    payload.videoPath = savedPaths.videoPath;
+    payload.auxiliaryImagePath = savedPaths.auxiliaryImagePath;
+  }
 
   try {
     setMessage("后端处理中，请稍候...");

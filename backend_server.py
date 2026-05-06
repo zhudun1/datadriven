@@ -129,13 +129,19 @@ class Handler(SimpleHTTPRequestHandler):
 
         # ===== 登录 =====
         if path == "/login":
-            result = do_login(data.get("username", ""), data.get("password", ""))
+            # 兼容前端发送的 email/name/username 字段
+            username = data.get("username") or data.get("email") or data.get("name") or ""
+            password = data.get("password", "")
+            result = do_login(username, password)
             self._send_json(result, 200 if result.get("result") == "ok" else 400)
             return
 
         # ===== 注册 =====
         if path == "/register":
-            result = do_register(data.get("username", ""), data.get("password", ""))
+            # 兼容前端发送的 email/name/username 字段
+            username = data.get("username") or data.get("email") or data.get("name") or ""
+            password = data.get("password", "")
+            result = do_register(username, password)
             self._send_json(result, 200 if result.get("result") == "ok" else 400)
             return
 

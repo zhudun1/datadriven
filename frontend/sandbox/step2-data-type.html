@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QoS 编排 - 步骤2：数据类型</title>
+    <link rel="stylesheet" href="../assets/styles.css" />
+    <style>
+      .step-container {
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 20px;
+      }
+      .step-header {
+        text-align: center;
+        margin-bottom: 40px;
+      }
+      .step-header h1 {
+        font-size: 28px;
+        color: #1a1a2e;
+        margin-bottom: 8px;
+      }
+      .step-header .step-indicator {
+        color: #666;
+        font-size: 14px;
+      }
+      .data-type-cards {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 24px;
+        margin-top: 32px;
+      }
+      .data-type-card {
+        background: #fff;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 32px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+      }
+      .data-type-card:hover {
+        border-color: #3b82f6;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+        transform: translateY(-2px);
+      }
+      .data-type-card.selected {
+        border-color: #3b82f6;
+        background: #eff6ff;
+      }
+      .qos-info {
+        margin-top: 12px;
+        padding: 8px 12px;
+        background: #f0fdf4;
+        border-radius: 6px;
+        font-size: 12px;
+        color: #166534;
+        border-left: 3px solid #22c55e;
+      }
+      .qos-label {
+        font-weight: 700;
+        display: block;
+        margin-bottom: 4px;
+      }
+      .qos-action {
+        display: block;
+        font-size: 11px;
+        color: #15803d;
+        margin-top: 4px;
+      }
+      .data-type-card .icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+      }
+      .data-type-card h3 {
+        font-size: 20px;
+        color: #1a1a2e;
+        margin: 0 0 8px;
+      }
+      .data-type-card .model-badge {
+        display: inline-block;
+        background: #fef3c7;
+        color: #92400e;
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        margin-top: 12px;
+      }
+      .data-type-card p {
+        color: #666;
+        font-size: 14px;
+        margin: 8px 0 0;
+      }
+      .actions {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        margin-top: 40px;
+      }
+      .primary-btn {
+        background: #3b82f6;
+        color: #fff;
+        border: none;
+        padding: 12px 32px;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+      .primary-btn:hover {
+        background: #2563eb;
+      }
+      .secondary-btn {
+        background: #fff;
+        color: #6b7280;
+        border: 2px solid #d1d5db;
+        padding: 12px 32px;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+      }
+      .secondary-btn:hover {
+        border-color: #9ca3af;
+      }
+      .message {
+        text-align: center;
+        padding: 12px;
+        border-radius: 8px;
+        margin-top: 16px;
+      }
+      .message.error {
+        background: #fee2e2;
+        color: #dc2626;
+      }
+      .message.success {
+        background: #dcfce7;
+        color: #166534;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="step-container">
+      <div class="step-header">
+        <h1>QoS 智能编排系统</h1>
+        <p class="step-indicator">步骤 2 / 5 · 选择数据类型</p>
+        <button class="ghost-btn" onclick="logout()" style="position:absolute;top:20px;right:20px;">退出登录</button>
+      </div>
+
+      <div class="data-type-cards">
+        <div class="data-type-card" id="pc-image-type" onclick="selectDataType('pc_image')">
+          <div class="icon">🖼️</div>
+          <h3>点云 + 图像</h3>
+          <span class="model-badge">CFM 模型</span>
+          <p>RGB图像 + TIFF点云文件<br/>适用于工业产品表面缺陷检测</p>
+          <div class="qos-info" id="cfm-qos">
+            <span class="qos-label">QUALITY_MED</span>
+            <span>时延: 1000ms | 可靠性: 99.9% | 优先级: 4</span>
+            <span class="qos-action">质量检测场景，中等实时性</span>
+          </div>
+        </div>
+
+        <div class="data-type-card" id="video-image-type" onclick="selectDataType('video_image')">
+          <div class="icon">🎬</div>
+          <h3>视频 + 图像</h3>
+          <span class="model-badge">Jigsaw 模型</span>
+          <p>监控视频 + 辅助图像<br/>适用于视频异常事件检测</p>
+          <div class="qos-info" id="jigsaw-qos">
+            <span class="qos-label">SAFETY_HIGH</span>
+            <span>时延: 200ms | 可靠性: 99.99% | 优先级: 6</span>
+            <span class="qos-action">安全监控场景，高实时性</span>
+          </div>
+        </div>
+      </div>
+
+      
+      <div id="message" class="message"></div>
+
+      <div class="actions">
+        <button class="secondary-btn" onclick="go('step1-entry.html')">返回上一步</button>
+        <button id="next-btn" class="primary-btn" onclick="goNext()" disabled>下一步</button>
+      </div>
+    </div>
+
+    <script src="js/step-workflow.js"></script>
+    <script>
+      // 检查登录
+      if (!requireAuth()) {
+        throw new Error("未登录");
+      }
+
+      // 验证上一步状态
+      const state = StepState.load();
+      if (state.step_mode !== 'data') {
+        // 如果不是数据模式，引导回第一步
+        window.location.href = 'step1-entry.html';
+        throw new Error("请先选择数据驱动模式");
+      }
+
+      StepState.setStep(2);
+
+      let selectedDataType = null;
+
+      function selectDataType(dataType) {
+        selectedDataType = dataType;
+
+        // 更新UI
+        document.querySelectorAll('.data-type-card').forEach(card => {
+          card.classList.remove('selected');
+        });
+
+        const cardId = dataType === 'pc_image' ? 'pc-image-type' : 'video-image-type';
+        document.getElementById(cardId).classList.add('selected');
+
+        // 根据数据类型设置模型类型
+        const modelType = dataType === 'pc_image' ? 'CFM' : 'Jigsaw';
+        StepState.save("data_type", dataType);
+        StepState.save("model_type", modelType);
+
+        // 启用下一步按钮
+        document.getElementById('next-btn').disabled = false;
+
+        setMessage('message',
+          dataType === 'pc_image' ?
+            '已选择：点云+图像 (CFM模型)' : '已选择：视频+图像 (Jigsaw模型)', 'success');
+      }
+
+      function goNext() {
+        if (!selectedDataType) {
+          setMessage('message', '请先选择一种数据类型', 'error');
+          return;
+        }
+        window.location.href = 'step3-file-input.html';
+      }
+
+      function logout() {
+        localStorage.removeItem("qos_token");
+        localStorage.removeItem("qos_user");
+        window.location.href = "../index.html";
+      }
+    </script>
+  </body>
+</html>

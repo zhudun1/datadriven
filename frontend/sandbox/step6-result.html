@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>编排结果 - 数据编排系统</title>
+  <link rel="stylesheet" href="../assets/styles.css" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; min-height: 100vh; }
+
+    /* Header */
+    .header { background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); padding: 16px 24px; color: #fff; display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { font-size: 20px; font-weight: 500; }
+    .header .user-info { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+    .header-btn { background: rgba(255,255,255,0.2); border: none; color: #fff; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    .header-btn:hover { background: rgba(255,255,255,0.3); }
+
+    /* Main */
+    .main { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+    /* 状态标签 */
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .status-badge.success { background: #dcfce7; color: #166534; }
+    .status-badge.warning { background: #fef3c7; color: #92400e; }
+    .status-badge.error { background: #fee2e2; color: #991b1b; }
+    .status-badge.neutral { background: #f3f4f6; color: #374151; }
+
+    /* 编排结果卡片 */
+    .result-main-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    .result-title {
+      font-size: 24px;
+      font-weight: 600;
+      color: #1e3a5f;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .result-title .icon { font-size: 28px; }
+
+    /* 结果网格 */
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    .result-item {
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+    .result-item.highlight {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+    }
+    .result-item .label {
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 8px;
+    }
+    .result-item.highlight .label { color: rgba(255,255,255,0.8); }
+    .result-item .value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1e3a5f;
+    }
+    .result-item.highlight .value { color: #fff; }
+    .result-item .sub-value {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+    .result-item.highlight .sub-value { color: rgba(255,255,255,0.7); }
+
+    /* 状态列表 */
+    .status-list {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid #e5e7eb;
+    }
+    .status-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      background: #f8fafc;
+      border-radius: 10px;
+    }
+    .status-item .name { font-size: 14px; color: #374151; }
+    .status-item .name .icon { margin-right: 8px; }
+
+    /* 按钮区域 */
+    .action-btns {
+      display: flex;
+      gap: 16px;
+      margin-top: 32px;
+      justify-content: center;
+    }
+    .action-btn {
+      padding: 14px 32px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+    .action-btn.primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+    }
+    .action-btn.primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(102,126,234,0.4); }
+    .action-btn.secondary {
+      background: #fff;
+      color: #374151;
+      border: 2px solid #e5e7eb;
+    }
+    .action-btn.secondary:hover { background: #f9fafb; }
+
+    /* 信息提示 */
+    .info-tip {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-top: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #1e40af;
+      font-size: 14px;
+    }
+    .info-tip .icon { font-size: 20px; }
+
+    /* 没有结果时 */
+    .no-result {
+      text-align: center;
+      padding: 60px 20px;
+    }
+    .no-result .icon { font-size: 48px; margin-bottom: 16px; }
+    .no-result .title { font-size: 20px; font-weight: 600; color: #374151; margin-bottom: 12px; }
+    .no-result .desc { color: #6b7280; font-size: 14px; margin-bottom: 24px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>编排结果</h1>
+    <div class="user-info">
+      <button class="header-btn" onclick="goResourceMgmt()">← 资源管理</button>
+    </div>
+  </div>
+
+  <div class="main" id="result-container">
+    <!-- 由JavaScript填充 -->
+  </div>
+
+  <script>
+    const API_BASE = "http://127.0.0.1:8001";
+
+    // 加载最新编排结果
+    async function loadLatestResult() {
+      try {
+        // 获取最新历史记录
+        const resp = await fetch(`${API_BASE}/api/history`);
+        const history = await resp.json();
+
+        const container = document.getElementById("result-container");
+
+        if (!history || history.length === 0) {
+          showNoResult(container);
+          return;
+        }
+
+        // 获取最新的成功记录
+        const latest = history.find(h => h.status === "active") || history[0];
+        if (!latest) {
+          showNoResult(container);
+          return;
+        }
+
+        // 渲染结果
+        renderResult(container, latest);
+
+      } catch (e) {
+        console.error("加载失败:", e);
+        document.getElementById("result-container").innerHTML = `
+          <div class="no-result">
+            <div class="icon">❌</div>
+            <div class="title">加载失败</div>
+            <div class="desc">${e.message}</div>
+            <button class="action-btn primary" onclick="loadLatestResult()">重试</button>
+          </div>
+        `;
+      }
+    }
+
+    // 显示无结果
+    function showNoResult(container) {
+      container.innerHTML = `
+        <div class="result-main-card">
+          <div class="no-result">
+            <div class="icon">📭</div>
+            <div class="title">暂无编排记录</div>
+            <div class="desc">请点击"继续编排"发起新的编排请求</div>
+            <button class="action-btn primary" onclick="continueOrchestration()">继续编排</button>
+          </div>
+        </div>
+      `;
+    }
+
+    // 渲染编排结果
+    function renderResult(container, result) {
+      const vnfNodes = result.vnf_node || [];
+      const linkPath = result.link_path || {};
+      const nodeIds = vnfNodes.join(" → ");
+
+      // 解析链路信息
+      let linkInfo = "-";
+      let bandwidthInfo = "-";
+      let latencyInfo = "-";
+
+      if (Object.keys(linkPath).length > 0) {
+        const links = [];
+        const bws = [];
+        const lats = [];
+        for (const [idx, link] of Object.entries(linkPath)) {
+          if (link.link_id !== undefined) {
+            links.push(`${link.src} → ${link.dst}`);
+            bws.push((link.bandwidth || 0).toFixed(2));
+            lats.push((link.latency || 0).toFixed(1));
+          }
+        }
+        linkInfo = links.join(", ");
+        bandwidthInfo = bws.join(" + ") + " Gbps";
+        latencyInfo = lats.join(" + ") + " ms";
+      }
+
+      // 解析节点资源信息（从 node_allocation 获取）
+      const nodeAlloc = result.node_allocation || {};
+      let vcpuInfo = "-";
+      let memoryInfo = "-";
+      const vcpus = [];
+      const memories = [];
+      for (const [nodeId, info] of Object.entries(nodeAlloc)) {
+        if (info) {
+          if (info.vcpu) vcpus.push(info.vcpu);
+          if (info.memory_gb) memories.push(info.memory_gb);
+        }
+      }
+      if (vcpus.length > 0) vcpuInfo = vcpus.join(" + ") + " 核";
+      if (memories.length > 0) memoryInfo = memories.join(" + ") + " GB";
+
+      // 状态
+      const qosStatus = result.qos_ok !== false;
+      const resourceStatus = result.resource_ok !== false;
+
+      container.innerHTML = `
+        <div class="result-main-card">
+          <div class="result-title">
+            <span class="icon">✅</span>
+            编排成功
+          </div>
+
+          <div class="result-grid">
+            <div class="result-item highlight">
+              <div class="label">部署节点</div>
+              <div class="value">${nodeIds || "-"}</div>
+              <div class="sub-value">VNF部署位置</div>
+            </div>
+            <div class="result-item highlight">
+              <div class="label">链路</div>
+              <div class="value">${linkInfo}</div>
+              <div class="sub-value">${bandwidthInfo}</div>
+            </div>
+            <div class="result-item highlight">
+              <div class="label">内存占用</div>
+              <div class="value">${memoryInfo}</div>
+              <div class="sub-value">时延: ${latencyInfo}</div>
+            </div>
+          </div>
+
+          <div class="status-list">
+            <div class="status-item">
+              <span class="name"><span class="icon">📊</span>QoS状态</span>
+              <span class="status-badge ${qosStatus ? 'success' : 'error'}">${qosStatus ? '满足' : '不满足'}</span>
+            </div>
+            <div class="status-item">
+              <span class="name"><span class="icon">💻</span>资源状态</span>
+              <span class="status-badge ${resourceStatus ? 'success' : 'warning'}">${resourceStatus ? '满足' : '不足'}</span>
+            </div>
+          </div>
+
+          <div class="info-tip">
+            <span class="icon">⏱️</span>
+            资源持有时间：编排成功后保留 ${result.resource_hold_seconds || 60} 秒
+          </div>
+
+          <div class="action-btns">
+            <button class="action-btn primary" onclick="continueOrchestration()">继续编排</button>
+            <button class="action-btn secondary" onclick="goResourceMgmt()">查看资源管理</button>
+          </div>
+        </div>
+      `;
+    }
+
+    // 继续编排 - 跳转到step2
+    function continueOrchestration() {
+      window.location.href = "step2-data-type.html";
+    }
+
+    // 查看资源管理 - 跳转到step7
+    function goResourceMgmt() {
+      window.location.href = "step6-orchestration-visualization.html";
+    }
+
+    // 页面加载时获取最新结果
+    loadLatestResult();
+  </script>
+</body>
+</html>

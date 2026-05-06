@@ -71,11 +71,22 @@ function isFrontendOnlyMode() {
 }
 
 async function localLogin(payload) {
-  const users = loadUsers();
+  // 本地模式：支持预存用户和默认测试用户
+  let users = loadUsers();
+
+  // 如果没有预存用户，添加默认测试用户
+  if (users.length === 0) {
+    users = [
+      { email: "admin", password: "admin123", name: "管理员" },
+      { email: "demo@test.com", password: "demo123", name: "演示用户" }
+    ];
+    saveUsers(users);
+  }
+
   const user = users.find(
     (item) =>
       (item.email === payload.username || item.phone === payload.username) &&
-      item.password === payload.password,
+      item.password === payload.password
   );
 
   if (!user) {
@@ -131,6 +142,15 @@ async function localRunOrchestration(formData) {
   const resourceRaw = formData.get("resourceRequest");
   const resources = typeof resourceRaw === "string" ? parseJSON(resourceRaw, {}) : {};
 
+  // 模拟资源消耗数据
+  const mockResourceConsumption = [
+    { vnf_index: 0, node_id: 0, node_name: "节点-0", cpu_used: 0.15, memory_used: 0.12 },
+    { vnf_index: 1, node_id: 3, node_name: "节点-3", cpu_used: 0.18, memory_used: 0.14 },
+  ];
+  const mockLinkConsumption = [
+    { src_node: 0, dst_node: 3, bandwidth_used: 0.08, latency: 15.0 },
+  ];
+
   return {
     mode: "local-fallback",
     status: "success",
@@ -143,6 +163,13 @@ async function localRunOrchestration(formData) {
       bandwidth: resources.bandwidth ?? null,
       note: resources.note || "",
     },
+    vnf_node: [0, 3],
+    link_path: [],
+    resource_consumption: mockResourceConsumption,
+    link_consumption: mockLinkConsumption,
+    reward: 125.5,
+    qos_ok: true,
+    resource_ok: true,
     suggestion: "这是本地演示结果。接入真实后端后将返回正式编排方案。",
   };
 }
